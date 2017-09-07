@@ -33,6 +33,18 @@ var route = {
             }
             res.sendFile(path.join(__dirname+'/public/notFound.html'));      // if a user can not be found
         };
+    },
+    getALobby: function(){
+        return function(req, res){
+            console.log('creating room ' + req.body.lobbyname);
+            lobby.create(req.body.lobbyname, function onCreate(error){
+                if(error){
+                    res.send(error);
+                } else {
+                    res.sendFile(path.join(__dirname+'/public/admin.html'));
+                }
+            });
+        };
     }
 };
 
@@ -43,9 +55,13 @@ var serve = {                                                // handles express 
         serve.app = serve.express();                         // create famework object
         var http = require('http').Server(serve.app);        // http server for express framework
         serve.app.use(serve.parse.json());                   // support JSON bodies
+        serve.app.use(serve.parse.urlencoded({
+            extended: true
+        }));
         serve.app.use('/static', serve.express.static(path.join(__dirname, 'public'))); // serve static files for site resources
         serve.router = serve.express.Router();               // create express router object to add routing events to
         serve.router.get('/', route.about());                // Quick about page for those that are lost
+        serve.router.post('/', route.getALobby());           // gives a user a lobby if they give us good info
         serve.router.get('/*', route.findUser());            // Default route goes to a user not found page
         serve.app.use(serve.router);                         // get express to user the routes we set
         return http;
@@ -54,4 +70,3 @@ var serve = {                                                // handles express 
 
 var http = serve.theSite();                                  // set express middleware and routes up
 http.listen(process.env.PORT);                               // listen on specified PORT enviornment variable
-lobby.create('paulbeaudet');
