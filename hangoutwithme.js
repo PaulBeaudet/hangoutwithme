@@ -50,7 +50,7 @@ var route = {
 };
 
 var mongo = {
-    MAIN: 'hangoutwithme', // name of main database that this service uses
+    MAIN: 'hangoutwithme', // name of key to call database by
     USERS: 'lobbyholders', // name of collection that stores customer data
     client: require('mongodb').MongoClient,
     db: {},                                            // object that contains connected databases
