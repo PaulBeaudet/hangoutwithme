@@ -23,7 +23,7 @@ var lobby = {
 var route = {
     about: function(){  // should be used to convert signups
         return function(req, res){
-            res.sendFile(path.join(__dirname+'/public/welcome.html'));
+            res.sendFile(path.join(__dirname+'/public/hangoutwithme.html'));
         };
     },
     findLobby: function(){
@@ -87,6 +87,19 @@ var mongo = {
     }
 };
 
+var socket = {
+    io: require('socket.io'),
+    listen: function(server){
+        socket.io = socket.io(server);
+        socket.io.on('connection', function(client){
+            console.log(client.id + " was connected");
+            client.on('disconnect', function(){
+                console.log(client.id + " was disconnected");
+            });
+        });
+    }
+};
+
 var serve = {                                                // handles express server setup
     express: require('express'),                             // server framework library
     parse: require('body-parser'),                           // middleware to parse JSON bodies
@@ -106,6 +119,7 @@ var serve = {                                                // handles express 
 };
 
 var http = serve.theSite();                                  // set express middleware and routes up
+socket.listen(http);                                         // listen for socket io connections
 mongo.init(function mainDbUp(){                              // set up connections for data persistence
     http.listen(process.env.PORT);                           // listen on specified PORT enviornment variable, when our main db is up
 });
