@@ -4,6 +4,7 @@ var socket = {
     io: io(),
     init: function(hwmFunction){
         socket.io.on('madeLobby', hwm.app.madeLobby); // guess vue just assigns all properties to parent
+        socket.io.on('signInResponse', hwm.app.signInResponse);
     }
 };
 
@@ -12,6 +13,7 @@ var hwm = {        // Hangout With Me
         el: '#app',
         data: {
             signup: true,   // show sigup form and welcome info
+            signin: false,  // show sign up view
             admin: false,   // show admin controls
             adminText: 'Admin your page',
             promocode: '',
@@ -37,6 +39,27 @@ var hwm = {        // Hangout With Me
                 else {
                     this.signup = false; // turn off welcome view
                     this.admin = true;   // turn on admin view
+                }
+            },
+            signinView: function(){
+                this.signup = false;
+                this.admin  = false;
+                this.signin = true;
+            },
+            initSignin: function(){
+                if(this.lobbyname && this.password){
+                    socket.io.emit('signin', {username: this.lobbyname, password: this.password});
+                } else {
+                    this.issueMsg = 'Enter in the right information';
+                }
+            },
+            signInResponse: function(data){
+                if(data.good){
+                    this.signup = false;
+                    this.admin  = true;
+                    this.signin = false;
+                } else {
+                    this.issueMsg = 'Wrong username or password';
                 }
             }
         }

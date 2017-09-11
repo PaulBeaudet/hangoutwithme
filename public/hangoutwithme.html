@@ -15,6 +15,16 @@
         <input v-model="password" type="password"></input>
         <button v-on:click="createLobby">Create Account</button>
         <p>{{ issueMsg }}</p>
+        <p> Or signin </p>
+        <button v-on:click="signinView">Sign In</button>
+    </div>
+    <div v-if="signin">
+        <p>Username</p>
+        <input v-model="lobbyname" type="text"></input>
+        <p>Password</p>
+        <input v-model="password" type="password"></input>
+        <button v-on:click="initSignin">Sign in</button>
+        <p>{{ issueMsg }}</p>
     </div>
     <div v-if='admin'>
         <p> {{adminText}} <p>

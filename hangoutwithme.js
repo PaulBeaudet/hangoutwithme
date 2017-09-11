@@ -4,11 +4,8 @@ var path = require('path');       // cause its nice to know where things are
 var bcrypt = {
     js: require('bcryptjs'), // u no, because storing passwords in plain text would be a better idea
     hash: function(password, doneHashing){
-        bcrypt.js.genSalt(10, function(err, salt){
-            bcrypt.js.hash(password, salt, function(error, hash){
-                var finError = err || error;
-                doneHashing(finError, hash);
-            });
+        bcrypt.js.hash(password, 10, function(error, hash){
+            doneHashing(error, hash);
         });
     }
 };
@@ -47,6 +44,24 @@ var hwm = { // Hangout with me
                 socket.io.to(clientId).emit('madeLobby', response);    // you have to get whats intended, so put something good in
             }
 
+        };
+    },
+    signin: function(clientId){
+        return function(data){
+            if(data.username && data.password){
+                mongo.db[mongo.MAIN].collection(mongo.USERS).findOne({
+                    lobbyname: data.username
+                }, function foundUser(error, result){
+                    var response = {good: false};
+                    if(result){
+                        bcrypt.js.compare(data.password, result.password, function(err, res){
+                            if(res){ response.good = true;}
+                            socket.io.to(clientId).emit('signInResponse', response);
+                        });
+                    } else {socket.io.to(clientId).emit('signInResponse', response);}
+
+                });
+            }
         };
     }
 };
@@ -117,9 +132,8 @@ var socket = {
         socket.io = socket.io(server);
         socket.io.on('connection', function(client){
             client.on('createLobby', hwm.createLobby(client.id));
-            client.on('disconnect', function(){
-                console.log(client.id + " was disconnected");
-            });
+            client.on('signin', hwm.signin(client.id));
+            client.on('disconnect', function(){});
         });
     }
 };
