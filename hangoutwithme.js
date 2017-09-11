@@ -1,24 +1,56 @@
 // hangoutwithme.js  ~ Copyright 2017 Paul Beaudet ~ MIT license
 // Serves webpage routes to virtual lobbies for visitors to schedule a google hangout with owner of lobby
-var path = require('path'); // cause its nice to know where things are
-
-var lobby = {
-    create: function(lobbyname, created){
-        var regex = /^[a-z]+$/;                                     // make sure there are only lowercase a-z to the last letter
-        lobbyname = lobbyname.toLowerCase();                        // lowercase input for potential customer, no need to be a hard ass
-        if(regex.test(lobbyname)){                                  // given that we are only using lowercase letters
-            mongo.db[mongo.MAIN].collection(mongo.USERS).insertOne( // customer sign up, when an actual room is asigned
-                {lobbyname: lobbyname.toLowerCase()},               // this unique feild defines routes that can be accessed on service
-                function onInsert(error, result){                   // what we do when mongo has done its thing
-                    if(error)      {created('Probably taken');}     // TODO maybe detect E11000 duplicate error
-                    else if(result){created();}                     // Best case scenerio, it stores a new lobby
-                }
-            );
-        } else {
-            created('invalid name for your address, try lowercase letters'); // you have to get whats intended, so put something good in
-        }
+var path = require('path');       // cause its nice to know where things are
+var bcrypt = {
+    js: require('bcryptjs'), // u no, because storing passwords in plain text would be a better idea
+    hash: function(password, doneHashing){
+        bcrypt.js.genSalt(10, function(err, salt){
+            bcrypt.js.hash(password, salt, function(error, hash){
+                var finError = err || error;
+                doneHashing(finError, hash);
+            });
+        });
     }
 };
+
+var hwm = { // Hangout with me
+    createLobby: function(clientId){
+        return function(data){
+            var regex = /^[a-z]+$/;                                     // make sure there are only lowercase a-z to the last letter
+            data.lobbyname = data.lobbyname.toLowerCase();              // lowercase input for potential customer, no need to be a hard ass
+            var response = {
+                duplicate: false,
+                invalidName: false,
+                idunnu: false
+            };
+            if(regex.test(data.lobbyname) && data.password ){               // given that only using lowercase letters and password was presented
+                bcrypt.hash(data.password, function(ohhashit, hash){
+                    if(ohhashit){ // failed to hash
+                        response.idunnu = true;
+                        socket.io.to(clientId).emit('madeLobby', response);
+                    } else {
+                        mongo.db[mongo.MAIN].collection(mongo.USERS).insertOne({// customer sign up, when an actual room is asigned
+                                lobbyname: data.lobbyname.toLowerCase(),        // this unique feild defines routes that can be accessed on service
+                                password: hash                                  // hash this thing
+                            },
+                            function onInsert(error, result){                   // what we do when mongo has done its thing
+                                if(error){response.duplicate = true;}
+                                else if(result){}                               // Best case scenerio, it stores a new lobby
+                                else{response.idunnu = true;}
+                                socket.io.to(clientId).emit('madeLobby', response);
+                            }
+                        );
+                    }
+                });
+            } else {
+                response.invalidName = true;
+                socket.io.to(clientId).emit('madeLobby', response);    // you have to get whats intended, so put something good in
+            }
+
+        };
+    }
+};
+
 
 var route = {
     about: function(){  // should be used to convert signups
@@ -76,19 +108,6 @@ var mongo = {
             mongo.db[mongo.MAIN].collection(mongo.USERS).createIndex({"lobbyname": 1}, {unique: true}); // primary unique id feild for this collection
             mainDbUp();
         });
-    }
-};
-
-
-var hwm = { // Hangout with me
-    createLobby: function(clientId){
-        return function(data){
-            lobby.create(data.lobbyname, function created(error){
-                socket.io.to(clientId).emit('madeLobby', {
-                    issue: error
-                });
-            });
-        };
     }
 };
 

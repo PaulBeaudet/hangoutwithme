@@ -6,12 +6,15 @@
 <div id="app">
     <div v-if="signup">
         <p>This is a site for setting up times to video chat with people you know or want to get to know</p>
-        <p>To get started enter your access code and give a name to use for a URL </p>
-        <p>Access Code <span v-if="wrongCode"> - Not the right code</span></p>
-        <input type="text" v-model="promocode"></input>
-        <p>URL name <span v-if="takenLobby"> - this url has been taken</span></p>
+        <p>Sign up for beta </p>
+        <p>Access Code</p>
+        <input v-model="promocode" type="text"></input>
+        <p>Username / page name </p>
         <input v-model="lobbyname" type="text"></input>
-        <button v-on:click="createLobby">Create</button>
+        <p>Password</p>
+        <input v-model="password" type="password"></input>
+        <button v-on:click="createLobby">Create Account</button>
+        <p>{{ issueMsg }}</p>
     </div>
     <div v-if='admin'>
         <p> {{adminText}} <p>
