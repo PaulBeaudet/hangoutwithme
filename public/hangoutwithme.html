@@ -3,14 +3,22 @@
     <title>hangoutwithme</title>
 </head>
 <body>
-    <p>This is a site for setting up times to video chat with people you know or want to get to know </p>
-    <p>To get started make a name for a room that you can send people to </p>
-    <form method="post">
-        <input type="text" name="lobbyname" required="true" maxlength="20"></input>
-        <button type="submit">Create</button>
-    </form>
-    <script src="https://unpkg.com/vue"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/static/js/hangoutwithmeClient.js"></script>
+<div id="app">
+    <div v-if="signup">
+        <p>This is a site for setting up times to video chat with people you know or want to get to know</p>
+        <p>To get started enter your access code and give a name to use for a URL </p>
+        <p>Access Code <span v-if="wrongCode"> - Not the right code</span></p>
+        <input type="text" v-model="promocode"></input>
+        <p>URL name <span v-if="takenLobby"> - this url has been taken</span></p>
+        <input v-model="lobbyname" type="text"></input>
+        <button v-on:click="createLobby">Create</button>
+    </div>
+    <div v-if='admin'>
+        <p> {{adminText}} <p>
+    </div>
+</div>
+<script src="https://unpkg.com/vue"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/hangoutwithmeClient.js"></script>
 </body>
 </html>

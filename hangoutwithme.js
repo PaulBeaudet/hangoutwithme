@@ -38,14 +38,6 @@ var route = {
                 })
             );
         };
-    },
-    signup: function(){ // TODO should be deprecated for a single page response
-        return function(req, res){
-            lobby.create(req.body.lobbyname, function created(error){
-                if(error){res.send(error);}                                    // there are no errors only unexpected results
-                else{res.sendFile(path.join(__dirname+'/public/admin.html'));}
-            });
-        };
     }
 };
 
@@ -87,12 +79,25 @@ var mongo = {
     }
 };
 
+
+var hwm = { // Hangout with me
+    createLobby: function(clientId){
+        return function(data){
+            lobby.create(data.lobbyname, function created(error){
+                socket.io.to(clientId).emit('madeLobby', {
+                    issue: error
+                });
+            });
+        };
+    }
+};
+
 var socket = {
     io: require('socket.io'),
     listen: function(server){
         socket.io = socket.io(server);
         socket.io.on('connection', function(client){
-            console.log(client.id + " was connected");
+            client.on('createLobby', hwm.createLobby(client.id));
             client.on('disconnect', function(){
                 console.log(client.id + " was disconnected");
             });
@@ -111,7 +116,6 @@ var serve = {                                                // handles express 
         serve.app.use('/static', serve.express.static(path.join(__dirname, 'public'))); // serve static files for site resources
         serve.router = serve.express.Router();               // create express router object to add routing events to
         serve.router.get('/', route.about());                // Quick about page for those that are lost
-        serve.router.post('/', route.signup());              // gives a user a lobby if they give us good info
         serve.router.get('/*', route.findLobby());           // Default route goes to a user not found page
         serve.app.use(serve.router);                         // get express to user the routes we set
         return http;
