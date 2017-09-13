@@ -63,6 +63,19 @@ var hwm = { // Hangout with me
                 });
             }
         };
+    },
+    saveSettings: function(clientId){
+        return function(data){ // we are just going to pass through for now
+            mongo.db[mongo.MAIN].collection(mongo.USERS).update(
+                {lobbyname: data.lobbyname},
+                { $set: data },
+                function(error, result){
+                    var save = {d: false};
+                    if(result){save.d = true;}
+                    socket.io.to(clientId).emit('saveAck', save);
+                }
+            );
+        };
     }
 };
 
@@ -133,6 +146,7 @@ var socket = {
         socket.io.on('connection', function(client){
             client.on('createLobby', hwm.createLobby(client.id));
             client.on('signin', hwm.signin(client.id));
+            client.on('saveSettings', hwm.saveSettings(client.id));
             client.on('disconnect', function(){});
         });
     }
