@@ -65,7 +65,8 @@ var auth = { // methods for signing into a service
         mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteMany(
             {expiry:{$lte: new Date().getTime()}}, // remove everything that has expired
             function(error, result){
-                if(!result){mongo.log('issue refreshing links');}
+                if(result){ //  number of removals would be result.result.n
+                }else{mongo.log('issue refreshing links');}
             }
         );
     },
@@ -82,6 +83,7 @@ var auth = { // methods for signing into a service
                     }
                 } else {
                     badlink();
+                    auth.refreshLinks(); // might be a good way to pace removing dead links
                     mongo.log('failed login for: ' + lobbyname + ' with ' + token + ' error: ' + error);
                 }
             }
