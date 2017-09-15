@@ -1,0 +1,18 @@
+<html>
+<head>
+    <title>hangoutwithme</title>
+</head>
+<body>
+<div id="app">
+    <p>Username</p>
+    <input v-model="lobbyname" type="text"></input>
+    <p>Password</p>
+    <input v-model="password" type="password"></input>
+    <button v-on:click="initSignin">Sign in</button>
+    <p>{{ issueMsg }}</p>
+</div>
+<script src="https://unpkg.com/vue"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<html>
+<head>
+    <title>hangoutwithme</title>
+</head>
+<body>
+<div id="app">
+    <p>This is a site for setting up times to video chat with people you know or want to get to know</p>
+    <p>Sign up for beta </p>
+    <p>Access Code</p>
+    <input v-model="promocode" type="text"></input>
+    <p>Username / page name </p>
+    <input v-model="lobbyname" type="text"></input>
+    <p>Password</p>
+    <input v-model="password" type="password"></input>
+    <button v-on:click="createLobby">Create Account</button>
+    <a href="/login">OR login here</a>
+    <p>{{ issueMsg }}</p>
+</div>
+<script src="https://unpkg.com/vue"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/signup.js"></script>
+</body>
+</html>

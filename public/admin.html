@@ -1,0 +1,32 @@
+<html>
+<head>
+    <title>hangoutwithme</title>
+</head>
+<body>
+<div id="app">
+    <p>Types of conversations you would like to have</p>
+    <label for="personal">Personal</label>
+    <input type="checkbox" id="personal" value="Personal" v-model="conversationTypes" checked>
+    <label for="work">Work</label>
+    <input type="checkbox" id="work" value="Work" v-model="conversationTypes" checked>
+    <p>Do not disturb hours</p>
+    <label for="dndstart"> Begin do not distrub</label>
+    <select v-model="doNotDisturbStart" id="dndstart">
+        <option v-for="dayTime in dayTimes" v-bind:value="dayTime.value">
+            {{ dayTime.text }}
+        </option>
+    </select>
+    <label for="dndend"> End do not distrub</label>
+    <select v-model="doNotDisturbEnd" id="dndend">
+        <option v-for="dayTime in dayTimes" v-bind:value="dayTime.value">
+            {{ dayTime.text }}
+        </option>
+    </select>
+    <button v-on:click="saveSettings">Save</button>
+    <p>{{ saved }}</p>
+</div>
+<script src="https://unpkg.com/vue"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/admin.js"></script>
+</body>
+</html>

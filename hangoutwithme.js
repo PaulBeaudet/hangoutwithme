@@ -1,69 +1,69 @@
 // hangoutwithme.js  ~ Copyright 2017 Paul Beaudet ~ MIT license
 // Serves webpage routes to virtual lobbies for visitors to schedule a google hangout with owner of lobby
 var path = require('path');       // cause its nice to know where things are
-var bcrypt = {
-    js: require('bcryptjs'), // u no, because storing passwords in plain text would be a better idea
-    hash: function(password, doneHashing){
-        bcrypt.js.hash(password, 10, function(error, hash){
-            doneHashing(error, hash);
-        });
-    }
-};
 
-var hwm = { // Hangout with me
+var auth = { // methods for signing into a service
+    bcrypt: require('bcryptjs'),
     createLobby: function(clientId){
         return function(data){
-            var regex = /^[a-z]+$/;                                     // make sure there are only lowercase a-z to the last letter
-            data.lobbyname = data.lobbyname.toLowerCase();              // lowercase input for potential customer, no need to be a hard ass
-            var response = {
-                duplicate: false,
-                invalidName: false,
-                idunnu: false
-            };
+            var regex = /^[a-z]+$/;                                         // make sure there are only lowercase a-z to the last letter
             if(regex.test(data.lobbyname) && data.password ){               // given that only using lowercase letters and password was presented
-                bcrypt.hash(data.password, function(ohhashit, hash){
-                    if(ohhashit){ // failed to hash
-                        response.idunnu = true;
-                        socket.io.to(clientId).emit('madeLobby', response);
-                    } else {
+                auth.bcrypt.hash(data.password, 10, function(ohhashit, hash){
+                    if(hash){ // got hash for this password
                         mongo.db[mongo.MAIN].collection(mongo.USERS).insertOne({// customer sign up, when an actual room is asigned
-                                lobbyname: data.lobbyname.toLowerCase(),        // this unique feild defines routes that can be accessed on service
-                                password: hash                                  // hash this thing
+                                lobbyname: data.lobbyname,                      // this unique feild defines routes that can be accessed on service
+                                password: hash                                  // store hash I don't want to know your password
                             },
                             function onInsert(error, result){                   // what we do when mongo has done its thing
-                                if(error){response.duplicate = true;}
-                                else if(result){}                               // Best case scenerio, it stores a new lobby
-                                else{response.idunnu = true;}
-                                socket.io.to(clientId).emit('madeLobby', response);
+                                if(error)      {auth.ack('This name is probably taken', clientId);}
+                                else if(result){auth.ack(false, clientId, data.lobbyname);} // Best case scenerio, it stores a new lobby
+                                else           {auth.ack('Something went wrong, try again', clientId);}
                             }
                         );
-                    }
+                    }else{auth.ack('Hard time registering password', clientId);}
                 });
-            } else {
-                response.invalidName = true;
-                socket.io.to(clientId).emit('madeLobby', response);    // you have to get whats intended, so put something good in
-            }
+            } else {auth.ack('Name is invalid, try a different one', clientId);}
 
         };
     },
     signin: function(clientId){
         return function(data){
-            if(data.username && data.password){
-                mongo.db[mongo.MAIN].collection(mongo.USERS).findOne({
-                    lobbyname: data.username
-                }, function foundUser(error, result){
-                    var response = {good: false};
-                    if(result){
-                        bcrypt.js.compare(data.password, result.password, function(err, res){
-                            if(res){ response.good = true;}
-                            socket.io.to(clientId).emit('signInResponse', response);
-                        });
-                    } else {socket.io.to(clientId).emit('signInResponse', response);}
-
-                });
-            }
+            var credentialsSuck = 'You might have the wrong user name or password';
+            mongo.db[mongo.MAIN].collection(mongo.USERS).findOne({lobbyname: data.lobby}, function foundUser(error, result){
+                if(error){
+                    auth.ack({issue: 'Error occured, try again'});
+                } else if(result){
+                    auth.bcrypt.compare(data.password, result.password, function(err, res){
+                        if(res){
+                            auth.ack(false, clientId, data.lobby); // first arg denotes no error
+                        } else {
+                            auth.ack(credentialsSuck, clientId);   // password is wrong
+                        }
+                    });
+                } else {auth.ack(credentialsSuck, clientId);}      // username is wrong
+            });
         };
     },
+    ack: function(error, clientId, lobby){ // signals client to redirect to a one time url on singup or login
+        if(error){ // cover pre-redirect issue - in this way only error needs to be passed
+            socket.io.to(clientId).emit('ack', {issue: error});
+        } else { // insert lobby and client id to open up one time login url
+            mongo.db[mongo.MAIN].collection(mongo.ONLINE).insertOne({token: clientId, lobbyname: lobby},
+                function(error, result){
+                    if(error){
+                        socket.io.to(clientId).emit('ack', {issue: 'Issue with sign in, try again'});
+                    } else if(result){
+                        socket.io.to(clientId).emit('ack', {token: clientId});
+                    } else {
+                        socket.io.to(clientId).emit('ack', {issue: 'Something went wrong, try again'});
+                    }
+                }
+            );
+        }
+    }
+};
+
+var admin = { // methods for managing a lobby
     saveSettings: function(clientId){
         return function(data){ // we are just going to pass through for now
             mongo.db[mongo.MAIN].collection(mongo.USERS).update(
@@ -79,31 +79,10 @@ var hwm = { // Hangout with me
     }
 };
 
-
-var route = {
-    about: function(){  // should be used to convert signups
-        return function(req, res){
-            res.sendFile(path.join(__dirname+'/public/hangoutwithme.html'));
-        };
-    },
-    findLobby: function(){
-        return function(req, res){
-            mongo.db[mongo.MAIN].collection(mongo.USERS).findOne(
-                {lobbyname: req.url.substr(1).toLowerCase()},                   // slash not needed also we only understand lowercase letters to avoid squating
-                mongo.bestCase(function foundARoom(){
-                    res.sendFile(path.join(__dirname+'/public/lobby.html'));    // serve up their lobby if this is one of our customers
-                }, function noRoom(){
-                    res.sendFile(path.join(__dirname+'/public/notFound.html')); // visitor just malformed a url
-                    mongo.log('lame request: '+req.url);                        // record this for later maybe will will have to redirect certain errors
-                })
-            );
-        };
-    }
-};
-
 var mongo = {
     MAIN: 'hangoutwithme', // name of key to call database by
     USERS: 'lobbyholders', // name of collection that stores customer data
+    ONLINE: 'online',      // persitent key/val store of online users (should prob use redis)
     client: require('mongodb').MongoClient,
     db: {},                                            // object that contains connected databases
     connect: function(url, dbName, connected){         // url to db and what well call this db in case we want multiple
@@ -144,11 +123,59 @@ var socket = {
     listen: function(server){
         socket.io = socket.io(server);
         socket.io.on('connection', function(client){
-            client.on('createLobby', hwm.createLobby(client.id));
-            client.on('signin', hwm.signin(client.id));
-            client.on('saveSettings', hwm.saveSettings(client.id));
+            client.on('createLobby', auth.createLobby(client.id));
+            client.on('signin', auth.signin(client.id));
+            client.on('saveSettings', admin.saveSettings(client.id));
             client.on('disconnect', function(){});
         });
+    }
+};
+
+var route = {
+    signup: function(){  // should be used to convert signups
+        return function(req, res){
+            res.sendFile(path.join(__dirname+'/public/signup.html'));
+        };
+    },
+    login: function(){
+        return function(req, res){
+            res.sendFile(path.join(__dirname+'/public/login.html'));
+        };
+    },
+    admin: function(){
+        return function(req, res){
+            var query = {$and :[{token: req.params.token}, {lobbyname: req.params.lobby}]}; // match based on username and maybe kinda unique token
+            mongo.db[mongo.MAIN].collection(mongo.ONLINE).findOne( query,
+                function(error, result){
+                    if(result){
+                        res.sendFile(path.join(__dirname+'/public/admin.html'));
+                        mongo.db[mongo.MAIN].collection(mongo.ONLINE).deleteOne( query, // since this route is a one time use
+                            function(err, result){
+                                if(!result){
+                                    mongo.log('issue removing login route ' + req.param.lobbyname);
+                                }
+                            }
+                        );
+                    } else {
+                        res.sendFile(path.join(__dirname+'/public/login.html'));
+                        mongo.log('failed login for: ' + req.params.lobby + ' with ' + req.params.token + ' error: ' + error);
+                    }
+                }
+            );
+        };
+    },
+    findLobby: function(){
+        return function(req, res){
+            mongo.db[mongo.MAIN].collection(mongo.USERS).findOne(
+                {lobbyname: req.params.lobby.toLowerCase()},                    // slash not needed also we only understand lowercase letters to avoid squating
+                mongo.bestCase(function foundARoom(){
+                    res.sendFile(path.join(__dirname+'/public/lobby.html'));    // serve up their lobby if this is one of our customers
+                }, function noRoom(){
+                    res.sendFile(path.join(__dirname+'/public/notFound.html')); // visitor just malformed a url
+                    mongo.log('lame request: '+req.param.lobby);                // record this for later maybe will will have to redirect certain errors
+                })
+            );
+        };
     }
 };
 
@@ -162,8 +189,11 @@ var serve = {                                                // handles express 
         serve.app.use(serve.parse.urlencoded({extended: true})); // idk, something was broken maybe this fixed it
         serve.app.use('/static', serve.express.static(path.join(__dirname, 'public'))); // serve static files for site resources
         serve.router = serve.express.Router();               // create express router object to add routing events to
-        serve.router.get('/', route.about());                // Quick about page for those that are lost
-        serve.router.get('/*', route.findLobby());           // Default route goes to a user not found page
+        serve.router.get('/', route.signup());               // Quick about page for those that are lost
+        serve.router.get('/signup', route.signup());         // Quick about page for those that are lost
+        serve.router.get('/login', route.login());           // login page
+        serve.router.get('/admin/:lobby/:token', route.admin()); // admin page
+        serve.router.get('/user/:lobby', route.findLobby()); // Default route goes to a user not found page
         serve.app.use(serve.router);                         // get express to user the routes we set
         return http;
     }
