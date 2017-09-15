@@ -23,7 +23,6 @@ var auth = { // methods for signing into a service
                     }else{auth.ack('Hard time registering password', clientId);}
                 });
             } else {auth.ack('Name is invalid, try a different one', clientId);}
-
         };
     },
     signin: function(clientId){
@@ -48,7 +47,8 @@ var auth = { // methods for signing into a service
         if(error){ // cover pre-redirect issue - in this way only error needs to be passed
             socket.io.to(clientId).emit('ack', {issue: error});
         } else { // insert lobby and client id to open up one time login url
-            mongo.db[mongo.MAIN].collection(mongo.lOGIN).insertOne({token: clientId, lobbyname: lobby},
+            var expiry = new Date().getTime() + 3600000; // current time plus an hour
+            mongo.db[mongo.MAIN].collection(mongo.lOGIN).insertOne({token: clientId, lobbyname: lobby, expiry: expiry},
                 function(error, result){
                     if(error){
                         socket.io.to(clientId).emit('ack', {issue: 'Issue with sign in, try again'});
@@ -61,8 +61,9 @@ var auth = { // methods for signing into a service
             );
         }
     },
-    removeLink: function(query, lobbyname){
-        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteOne( query, // since this route is a one time use
+    removeLink: function(token, lobbyname){ // Remove link if session has expired
+        var query = {$and :[{token: token},{lobbyname: lobbyname}]};
+        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteOne(query, // since this route is a one time use
             function(error, result){
                 if(!result){
                     mongo.log('issue removing login route ' + lobbyname);
@@ -168,12 +169,19 @@ var route = {
     },
     admin: function(){
         return function(req, res){
-            var query = {$and :[{token: req.params.token}, {lobbyname: req.params.lobby}]}; // match based on username and maybe kinda unique token
+            var query = {$and :[
+                {token: req.params.token},
+                {lobbyname: req.params.lobby},
+            ]}; // match based on username and maybe kinda unique token
             mongo.db[mongo.MAIN].collection(mongo.lOGIN).findOne( query,
                 function(error, result){
                     if(result){
-                        res.sendFile(path.join(__dirname+'/public/admin.html'));
-                        auth.removeLink(query, req.params.lobby);
+                        if(result.expiry > new Date().getTime()){
+                            res.sendFile(path.join(__dirname+'/public/admin.html'));
+                        } else { // given this link has expired remove it
+                            res.sendFile(path.join(__dirname+'/public/login.html'));
+                            auth.removeLink(req.params.token, req.params.token);
+                        }
                     } else {
                         res.sendFile(path.join(__dirname+'/public/login.html'));
                         mongo.log('failed login for: ' + req.params.lobby + ' with ' + req.params.token + ' error: ' + error);
