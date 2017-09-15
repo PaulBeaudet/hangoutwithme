@@ -61,13 +61,11 @@ var auth = { // methods for signing into a service
             );
         }
     },
-    removeLink: function(token, lobbyname){ // Remove link if session has expired
-        var query = {$and :[{token: token},{lobbyname: lobbyname}]};
-        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteOne(query, // since this route is a one time use
+    refreshLinks: function(){ // Remove all links that have expired
+        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteMany(
+            {expiry:{$lte: new Date().getTime()}}, // remove everything that has expired
             function(error, result){
-                if(!result){
-                    mongo.log('issue removing login route ' + lobbyname);
-                }
+                if(!result){mongo.log('issue refreshing links');}
             }
         );
     },
@@ -80,7 +78,7 @@ var auth = { // methods for signing into a service
                         goodlink();
                     } else { // given this link has expired remove it
                         badlink();
-                        auth.removeLink(token, lobbyname);
+                        auth.refreshLinks(); // might be a good way to pace removing dead links
                     }
                 } else {
                     badlink();
