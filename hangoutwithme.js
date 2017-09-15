@@ -10,7 +10,7 @@ var auth = { // methods for signing into a service
             if(regex.test(data.lobbyname) && data.password ){               // given that only using lowercase letters and password was presented
                 auth.bcrypt.hash(data.password, 10, function(ohhashit, hash){
                     if(hash){ // got hash for this password
-                        mongo.db[mongo.MAIN].collection(mongo.USERS).insertOne({// customer sign up, when an actual room is asigned
+                        mongo.db[mongo.MAIN].collection(mongo.LOBBY).insertOne({// customer sign up, when an actual room is asigned
                                 lobbyname: data.lobbyname,                      // this unique feild defines routes that can be accessed on service
                                 password: hash                                  // store hash I don't want to know your password
                             },
@@ -29,7 +29,7 @@ var auth = { // methods for signing into a service
     signin: function(clientId){
         return function(data){
             var credentialsSuck = 'You might have the wrong user name or password';
-            mongo.db[mongo.MAIN].collection(mongo.USERS).findOne({lobbyname: data.lobby}, function foundUser(error, result){
+            mongo.db[mongo.MAIN].collection(mongo.LOBBY).findOne({lobbyname: data.lobby}, function foundUser(error, result){
                 if(error){
                     auth.ack({issue: 'Error occured, try again'});
                 } else if(result){
@@ -48,7 +48,7 @@ var auth = { // methods for signing into a service
         if(error){ // cover pre-redirect issue - in this way only error needs to be passed
             socket.io.to(clientId).emit('ack', {issue: error});
         } else { // insert lobby and client id to open up one time login url
-            mongo.db[mongo.MAIN].collection(mongo.ONLINE).insertOne({token: clientId, lobbyname: lobby},
+            mongo.db[mongo.MAIN].collection(mongo.lOGIN).insertOne({token: clientId, lobbyname: lobby},
                 function(error, result){
                     if(error){
                         socket.io.to(clientId).emit('ack', {issue: 'Issue with sign in, try again'});
@@ -62,7 +62,7 @@ var auth = { // methods for signing into a service
         }
     },
     removeLink: function(query, lobbyname){
-        mongo.db[mongo.MAIN].collection(mongo.ONLINE).deleteOne( query, // since this route is a one time use
+        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteOne( query, // since this route is a one time use
             function(error, result){
                 if(!result){
                     mongo.log('issue removing login route ' + lobbyname);
@@ -75,9 +75,10 @@ var auth = { // methods for signing into a service
 var admin = { // methods for managing a lobby
     saveSettings: function(clientId){
         return function(data){ // we are just going to pass through for now
-            mongo.db[mongo.MAIN].collection(mongo.USERS).update(
+            mongo.db[mongo.MAIN].collection(mongo.USER).update(
                 {lobbyname: data.lobbyname},
                 { $set: data },
+                {upsert: true},
                 function(error, result){
                     var save = {d: false};
                     if(result){save.d = true;}
@@ -90,8 +91,9 @@ var admin = { // methods for managing a lobby
 
 var mongo = {
     MAIN: 'hangoutwithme', // name of key to call database by
-    USERS: 'lobbyholders', // name of collection that stores customer data
-    ONLINE: 'online',      // persitent key/val store of online users (should prob use redis)
+    LOBBY: 'lobbys',       // name of collection that stores customer routes
+    USER: 'profiles',      // name of collection that stores user data
+    lOGIN: 'logins',       // persitent key/val store of lOGIN users (should prob use redis)
     client: require('mongodb').MongoClient,
     db: {},                                            // object that contains connected databases
     connect: function(url, dbName, connected){         // url to db and what well call this db in case we want multiple
@@ -121,7 +123,7 @@ var mongo = {
     },
     init: function(mainDbUp){
         mongo.connect(process.env.MONGODB_URI, mongo.MAIN, function connected(){                        // connect to main database
-            mongo.db[mongo.MAIN].collection(mongo.USERS).createIndex({"lobbyname": 1}, {unique: true}); // primary unique id feild for this collection
+            mongo.db[mongo.MAIN].collection(mongo.LOBBY).createIndex({"lobbyname": 1}, {unique: true}); // primary unique id feild for this collection
             mainDbUp();
         });
     }
@@ -154,7 +156,7 @@ var route = {
     admin: function(){
         return function(req, res){
             var query = {$and :[{token: req.params.token}, {lobbyname: req.params.lobby}]}; // match based on username and maybe kinda unique token
-            mongo.db[mongo.MAIN].collection(mongo.ONLINE).findOne( query,
+            mongo.db[mongo.MAIN].collection(mongo.lOGIN).findOne( query,
                 function(error, result){
                     if(result){
                         res.sendFile(path.join(__dirname+'/public/admin.html'));
@@ -169,7 +171,7 @@ var route = {
     },
     findLobby: function(){
         return function(req, res){
-            mongo.db[mongo.MAIN].collection(mongo.USERS).findOne(
+            mongo.db[mongo.MAIN].collection(mongo.LOBBY).findOne(
                 {lobbyname: req.params.lobby.toLowerCase()},                    // slash not needed also we only understand lowercase letters to avoid squating
                 mongo.bestCase(function foundARoom(){
                     res.sendFile(path.join(__dirname+'/public/lobby.html'));    // serve up their lobby if this is one of our customers

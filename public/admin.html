@@ -6,9 +6,9 @@
 <div id="app">
     <p>Types of conversations you would like to have</p>
     <label for="personal">Personal</label>
-    <input type="checkbox" id="personal" value="Personal" v-model="conversationTypes" checked>
+    <input type="checkbox" id="personal" v-model="personalUse">
     <label for="work">Work</label>
-    <input type="checkbox" id="work" value="Work" v-model="conversationTypes" checked>
+    <input type="checkbox" id="work" v-model="workUse">
     <p>Do not disturb hours</p>
     <label for="dndstart"> Begin do not distrub</label>
     <select v-model="doNotDisturbStart" id="dndstart">

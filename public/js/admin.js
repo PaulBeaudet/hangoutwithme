@@ -10,14 +10,16 @@ var socket = {
     io: io(),
     init: function(){
         socket.io.on('saveAck', admin.app.saveAck);
+        socket.io.on('userInfo', admin.app.update);
     }
 };
 
-var admin = {        // Hangout With Me
+var admin = {      // admin controls
     app: new Vue({ // I can only imagine this framework is full of dank memes
         el: '#app',
         data: {
-            conversationTypes: [],
+            personalUse: true,
+            workUse: false,
             dayTimes: TIMES_IN_THE_DAY,
             doNotDisturbStart: 22,
             doNotDisturbEnd: 7,
@@ -25,16 +27,24 @@ var admin = {        // Hangout With Me
         },
         methods: {
             saveSettings: function(){ // save settings to server side in mongo database
-                socket.io.emit('saveSettings', {
+                var profile = {
                     lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
                     doNotDisturbStart: this.doNotDisturbStart,
                     doNotDisturbEnd: this.doNotDisturbEnd,
-                    conversationTypes: this.conversationTypes
-                });
+                    useCases:{},
+                };
+                if(this.personalUse){profile.useCases.personal = this.personalUse;}
+                if(this.workUse){profile.useCases.work = this.workUse;}
+                // TODO provide ability to add aditional use profiles
+                socket.io.emit('saveSettings', profile);
             },
             saveAck: function(save){
                 if(save.d){this.saved = 'saved';}
                 else{this.saved = 'failed to save';}
+            },
+            update: function(data){
+                if(data.doNotDisturbStart){this.doNotDisturbStart = data.doNotDisturbStart;}
+                if(data.doNotDisturbEnd){this.doNotDisturbEnd = data.doNotDisturbEnd;}
             }
         }
     })
