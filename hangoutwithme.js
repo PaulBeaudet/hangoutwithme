@@ -86,6 +86,18 @@ var admin = { // methods for managing a lobby
                 }
             );
         };
+    },
+    getProfile: function(clientId){
+        return function(data){ // TODO check token against logins
+            mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
+                {lobbyname: data.lobbyname},
+                function gotProfile(error, result){
+                    if(result){ // basically this is just a relay to the database
+                        socket.io.to(clientId).emit('userInfo', result);
+                    }
+                }
+            );
+        };
     }
 };
 
@@ -137,6 +149,7 @@ var socket = {
             client.on('createLobby', auth.createLobby(client.id));
             client.on('signin', auth.signin(client.id));
             client.on('saveSettings', admin.saveSettings(client.id));
+            client.on('getProfile', admin.getProfile(client.id));
             client.on('disconnect', function(){});
         });
     }

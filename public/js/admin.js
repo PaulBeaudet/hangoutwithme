@@ -9,8 +9,12 @@ var TIMES_IN_THE_DAY = [{text:'5AM', value:5},{text:'6AM', value:6},{text:'7AM',
 var socket = {
     io: io(),
     init: function(){
-        socket.io.on('saveAck', admin.app.saveAck);
-        socket.io.on('userInfo', admin.app.update);
+        socket.io.on('saveAck', admin.app.saveAck); // response to saving profile information
+        socket.io.on('userInfo', admin.app.update); // response to get profile
+        socket.io.emit('getProfile', { // probably a bad way to do it, really dont want to template
+            lobbyname: window.location.href.split('/')[4],
+            token: window.location.href.split('/')[5]
+        }); // mainly this is a timing thing, one would have to redefine a correct token and lobby name before this loads
     }
 };
 
@@ -18,7 +22,7 @@ var admin = {      // admin controls
     app: new Vue({ // I can only imagine this framework is full of dank memes
         el: '#app',
         data: {
-            personalUse: true,
+            personalUse: false,
             workUse: false,
             dayTimes: TIMES_IN_THE_DAY,
             doNotDisturbStart: 22,
@@ -45,6 +49,10 @@ var admin = {      // admin controls
             update: function(data){
                 if(data.doNotDisturbStart){this.doNotDisturbStart = data.doNotDisturbStart;}
                 if(data.doNotDisturbEnd){this.doNotDisturbEnd = data.doNotDisturbEnd;}
+                if(data.useCases){
+                    if(data.useCases.work){this.workUse = true;}
+                    if(data.useCases.personal){this.personalUse = true;}
+                }
             }
         }
     })
