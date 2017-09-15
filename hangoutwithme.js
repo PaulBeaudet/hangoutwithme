@@ -70,6 +70,24 @@ var auth = { // methods for signing into a service
                 }
             }
         );
+    },
+    checkLink: function(token, lobbyname, goodlink, badlink){
+        mongo.db[mongo.MAIN].collection(mongo.lOGIN).findOne(
+            {$and :[{token: token},{lobbyname: lobbyname},]}, // match based on username and maybe kinda unique token
+            function(error, result){
+                if(result){
+                    if(result.expiry > new Date().getTime()){
+                        goodlink();
+                    } else { // given this link has expired remove it
+                        badlink();
+                        auth.removeLink(token, lobbyname);
+                    }
+                } else {
+                    badlink();
+                    mongo.log('failed login for: ' + lobbyname + ' with ' + token + ' error: ' + error);
+                }
+            }
+        );
     }
 };
 
@@ -90,14 +108,16 @@ var admin = { // methods for managing a lobby
     },
     getProfile: function(clientId){
         return function(data){ // TODO check token against logins
-            mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
-                {lobbyname: data.lobbyname},
-                function gotProfile(error, result){
-                    if(result){ // basically this is just a relay to the database
-                        socket.io.to(clientId).emit('userInfo', result);
+            auth.checkLink(data.token, data.lobbyname, function goodlink(){
+                mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
+                    {lobbyname: data.lobbyname},
+                    function gotProfile(error, result){
+                        if(result){ // basically this is just a relay to the database
+                            socket.io.to(clientId).emit('userInfo', result);
+                        }
                     }
-                }
-            );
+                );
+            }, function badlink(){});
         };
     }
 };
@@ -169,25 +189,11 @@ var route = {
     },
     admin: function(){
         return function(req, res){
-            var query = {$and :[
-                {token: req.params.token},
-                {lobbyname: req.params.lobby},
-            ]}; // match based on username and maybe kinda unique token
-            mongo.db[mongo.MAIN].collection(mongo.lOGIN).findOne( query,
-                function(error, result){
-                    if(result){
-                        if(result.expiry > new Date().getTime()){
-                            res.sendFile(path.join(__dirname+'/public/admin.html'));
-                        } else { // given this link has expired remove it
-                            res.sendFile(path.join(__dirname+'/public/login.html'));
-                            auth.removeLink(req.params.token, req.params.token);
-                        }
-                    } else {
-                        res.sendFile(path.join(__dirname+'/public/login.html'));
-                        mongo.log('failed login for: ' + req.params.lobby + ' with ' + req.params.token + ' error: ' + error);
-                    }
-                }
-            );
+            auth.checkLink(req.params.token, req.params.lobby, function goodlink(){
+                res.sendFile(path.join(__dirname+'/public/admin.html'));
+            }, function badlink(){
+                res.sendFile(path.join(__dirname+'/public/login.html'));
+            });
         };
     },
     findLobby: function(){
