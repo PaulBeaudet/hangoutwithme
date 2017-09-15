@@ -60,6 +60,15 @@ var auth = { // methods for signing into a service
                 }
             );
         }
+    },
+    removeLink: function(query, lobbyname){
+        mongo.db[mongo.MAIN].collection(mongo.ONLINE).deleteOne( query, // since this route is a one time use
+            function(error, result){
+                if(!result){
+                    mongo.log('issue removing login route ' + lobbyname);
+                }
+            }
+        );
     }
 };
 
@@ -149,13 +158,7 @@ var route = {
                 function(error, result){
                     if(result){
                         res.sendFile(path.join(__dirname+'/public/admin.html'));
-                        mongo.db[mongo.MAIN].collection(mongo.ONLINE).deleteOne( query, // since this route is a one time use
-                            function(err, result){
-                                if(!result){
-                                    mongo.log('issue removing login route ' + req.param.lobbyname);
-                                }
-                            }
-                        );
+                        auth.removeLink(query, req.params.lobby);
                     } else {
                         res.sendFile(path.join(__dirname+'/public/login.html'));
                         mongo.log('failed login for: ' + req.params.lobby + ' with ' + req.params.token + ' error: ' + error);

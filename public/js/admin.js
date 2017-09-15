@@ -26,7 +26,7 @@ var admin = {        // Hangout With Me
         methods: {
             saveSettings: function(){ // save settings to server side in mongo database
                 socket.io.emit('saveSettings', {
-                    lobbyname: window.location.href.split('/')[4],
+                    lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
                     doNotDisturbStart: this.doNotDisturbStart,
                     doNotDisturbEnd: this.doNotDisturbEnd,
                     conversationTypes: this.conversationTypes
