@@ -96,7 +96,7 @@ var admin = { // methods for managing a lobby
         return function(data){ // we are just going to pass through for now
             mongo.db[mongo.MAIN].collection(mongo.USER).update(
                 {lobbyname: data.lobbyname},
-                { $set: data },
+                { $set: data }, // TODO validate in information
                 {upsert: true},
                 function(error, result){
                     var save = {d: false};
@@ -107,7 +107,7 @@ var admin = { // methods for managing a lobby
         };
     },
     getProfile: function(clientId){
-        return function(data){ // TODO check token against logins
+        return function(data){ // idea here is you "might" be rendering private info
             auth.checkLink(data.token, data.lobbyname, function goodlink(){
                 mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
                     {lobbyname: data.lobbyname},
@@ -118,6 +118,21 @@ var admin = { // methods for managing a lobby
                     }
                 );
             }, function badlink(){});
+        };
+    }
+};
+
+var lobby = { // methods for managing lobby usage
+    getInfo: function(clientId){
+        return function(data){
+            mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
+                {lobbyname: data.lobbyname},
+                function gotProfile(error, result){
+                    if(result){ // TODO validate out private information
+                        socket.io.to(clientId).emit('lobbyInfo', result);
+                    }
+                }
+            );
         };
     }
 };
@@ -171,6 +186,7 @@ var socket = {
             client.on('signin', auth.signin(client.id));
             client.on('saveSettings', admin.saveSettings(client.id));
             client.on('getProfile', admin.getProfile(client.id));
+            client.on('getLobbyInfo', lobby.getInfo(client.id));
             client.on('disconnect', function(){});
         });
     }

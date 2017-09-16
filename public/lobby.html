@@ -1,8 +1,23 @@
 <html>
 <head>
-    <title>User Lobby</title>
+    <title>hangoutwithme</title>
 </head>
 <body>
-  <p> This is the lobby of a user </p>
+<div id="app">
+    <p>Pick a time you want to chat with {{ lobbyname }}</p>
+    <label for="availability"> Availability</label>
+    <div v-if="hasUserInfo">
+    <select v-model="selectedTime" id="availability">
+        <option v-for="openTime in openTimes" v-bind:value="openTime.value">
+            {{ openTime.text }}
+        </option>
+    </select>
+    </div>
+    <p>{{selectedTime}}</p>
+    <button v-on:click="submitAppointment">Schedule a hangout</button>
+</div>
+<script src="https://unpkg.com/vue"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/lobby.js"></script>
 </body>
 </html>
