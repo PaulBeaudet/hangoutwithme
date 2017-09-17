@@ -11,7 +11,8 @@ var socket = {
 };
 
 var time = {
-    compare: { // return true for available times
+    COVERAGE: 24, // hours of coverage
+    compare: {    // return true for available times
         nightToMorning: function(hour, start, end){return (hour <= start || hour > end);},
         morningToNight: function(hour, start, end){return (hour >= start && hour < end);},
     },
@@ -22,6 +23,21 @@ var time = {
                 else{return hour - 12 + 'PM';}
             } else {return hour + 'AM';}
         } else {return "12AM";}
+    },
+    availHours: function(appointments){ // takes array un millis timestampted appointments
+        if(appointments.length){        // given that we have any appointments
+            availabilityArray = [];
+            for(var hour = 0; hour < time.COVERAGE; hour++){
+                availabilityArray[hour] = true; // default everything to true
+            }
+            for(var appointment = 0; appointment < appointments.length; appointment++){
+                var busyTime = new Date(appointments[appointment].time).getHours();
+                if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
+                    availabilityArray[busyTime] = false;       // mark taken times
+                }
+            }
+            return availabilityArray;
+        }
     }
 };
 
@@ -40,9 +56,10 @@ var lobby = {      // admin controls
         methods: {
             render: function(data){ // show availability information for this user
                 var compare = 'morningToNight'; // default is available morning to night
+                var avail = time.availHours(data.appointments);
                 if(data.doNotDisturbStart > data.doNotDisturbEnd){compare = 'nightToMorning';}
-                for(var hour = this.onloadTime.getHours() + 1; hour < 24; hour++){      // just for today
-                    if(time.compare[compare](hour, data.doNotDisturbStart, data.doNotDisturbEnd)){
+                for(var hour = this.onloadTime.getHours() + 1; hour < time.COVERAGE; hour++){  // just for today
+                    if(time.compare[compare](hour, data.doNotDisturbStart, data.doNotDisturbEnd) && avail[hour]){
                         this.openTimes.push({text:time.getText(hour), value:hour}); // can has, render something
                     }
                 }
