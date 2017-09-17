@@ -25,19 +25,17 @@ var time = {
         } else {return "12AM";}
     },
     availHours: function(appointments){ // takes array un millis timestampted appointments
-        if(appointments.length){        // given that we have any appointments
-            availabilityArray = [];
-            for(var hour = 0; hour < time.COVERAGE; hour++){
-                availabilityArray[hour] = true; // default everything to true
-            }
-            for(var appointment = 0; appointment < appointments.length; appointment++){
-                var busyTime = new Date(appointments[appointment].time).getHours();
-                if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
-                    availabilityArray[busyTime] = false;       // mark taken times
-                }
-            }
-            return availabilityArray;
+        availabilityArray = [];
+        for(var hour = 0; hour < time.COVERAGE; hour++){
+            availabilityArray[hour] = true; // default everything to true
         }
+        for(var appointment = 0; appointment < appointments.length; appointment++){
+            var busyTime = new Date(appointments[appointment].time).getHours();
+            if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
+                availabilityArray[busyTime] = false;       // mark taken times
+            }
+        }
+        return availabilityArray;
     }
 };
 
