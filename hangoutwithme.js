@@ -134,6 +134,24 @@ var lobby = { // methods for managing lobby usage
                 }
             );
         };
+    },
+    appointment: function(clientId){ //
+        return function(data){
+            mongo.db[mongo.MAIN].collection(mongo.USER).updateOne(
+                {lobbyname: data.lobbyname},
+                {$push: {appointments: {
+                        time: data.time,
+                        who: data.who
+                    }}
+                },
+                {upsert: true}, // make a new doc if there isn't already one
+                function makeAppointment(error, result){
+                    var confirm = {ok: false};
+                    if(result){confirm.ok= true;} // signal to user that things are good
+                    socket.io.to(clientId).emit('confirm', confirm);
+                }
+            );
+        };
     }
 };
 
@@ -182,11 +200,12 @@ var socket = {
     listen: function(server){
         socket.io = socket.io(server);
         socket.io.on('connection', function(client){
-            client.on('createLobby', auth.createLobby(client.id));
-            client.on('signin', auth.signin(client.id));
+            client.on('createLobby',  auth.createLobby(client.id));
+            client.on('signin',       auth.signin(client.id));
             client.on('saveSettings', admin.saveSettings(client.id));
-            client.on('getProfile', admin.getProfile(client.id));
+            client.on('getProfile',   admin.getProfile(client.id));
             client.on('getLobbyInfo', lobby.getInfo(client.id));
+            client.on('appointment',  lobby.appointment(client.id));
             client.on('disconnect', function(){});
         });
     }

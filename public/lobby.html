@@ -4,6 +4,8 @@
 </head>
 <body>
 <div id="app">
+    <p> Whats your name? </p>
+    <input type="text" v-model="who">
     <p>Pick a time you want to chat with {{ lobbyname }}</p>
     <label for="availability"> Availability</label>
     <div v-if="hasUserInfo">
@@ -13,8 +15,8 @@
         </option>
     </select>
     </div>
-    <p>{{selectedTime}}</p>
-    <button v-on:click="submitAppointment">Schedule a hangout</button>
+    <p>{{confirmation}}</p>
+    <button v-on:click="appointment">Schedule a hangout</button>
 </div>
 <script src="https://unpkg.com/vue"></script>
 <script src="/socket.io/socket.io.js"></script>

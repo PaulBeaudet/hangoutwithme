@@ -38,6 +38,7 @@ var admin = {      // admin controls
                     doNotDisturbEnd: this.doNotDisturbEnd,
                     reachMeUrl: this.reachMeUrl,
                     useCases:{},
+                    appointments:[],
                 };
                 if(this.personalUse){profile.useCases.personal = this.personalUse;}
                 if(this.workUse){profile.useCases.work = this.workUse;}

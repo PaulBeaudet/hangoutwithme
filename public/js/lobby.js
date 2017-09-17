@@ -3,6 +3,7 @@ var socket = {
     io: io(),
     init: function(){
         socket.io.on('lobbyInfo', lobby.app.render);
+        socket.io.on('confirm', lobby.app.confirm);
         socket.io.emit('getLobbyInfo', {
             lobbyname: window.location.href.split('/')[4]
         });
@@ -32,20 +33,36 @@ var lobby = {      // admin controls
             openTimes: [],
             selectedTime: '',
             hasUserInfo: false,
+            onloadTime: new Date(),
+            who: '',
+            confirmation: 'no hangout pending',
         },
         methods: {
             render: function(data){ // show availability information for this user
                 var compare = 'morningToNight'; // default is available morning to night
                 if(data.doNotDisturbStart > data.doNotDisturbEnd){compare = 'nightToMorning';}
-                for(var hour = 0; hour < 24; hour++){ // we are talking about today so enter start time
+                for(var hour = this.onloadTime.getHours() + 1; hour < 24; hour++){      // just for today
                     if(time.compare[compare](hour, data.doNotDisturbStart, data.doNotDisturbEnd)){
                         this.openTimes.push({text:time.getText(hour), value:hour}); // can has, render something
                     }
                 }
                 this.hasUserInfo = true; // signal that view is ready to be rendered
             },
-            submitAppointment: function(){
-                console.log(this.selectedTime); // store an appointment
+            appointment: function(){
+                if(this.who && this.selectedTime){
+                    this.onloadTime.setHours(this.selectedTime);
+                    socket.io.emit('appointment', { // first lets just assume for today an work from there
+                        lobbyname: this.lobbyname,
+                        time: this.onloadTime.getTime(),
+                        who: this.who
+                    });
+                } else {
+                    this.confirmation = 'Have to know who you are and when';
+                }
+            },
+            confirm: function(data){  // confirms appointment was made or not
+                if(data.ok){this.confirmation = 'hangout pending';}
+                else{this.confirmation = 'something went wrong';}
             }
         }
     })
