@@ -214,32 +214,32 @@ var socket = {
 var route = {
     signup: function(){  // should be used to convert signups
         return function(req, res){
-            res.sendFile(path.join(__dirname+'/public/signup.html'));
+            res.sendFile(path.join(__dirname+'/web/signup.html'));
         };
     },
     login: function(){
         return function(req, res){
-            res.sendFile(path.join(__dirname+'/public/login.html'));
+            res.sendFile(path.join(__dirname+'/web/login.html'));
         };
     },
     admin: function(){
         return function(req, res){
             auth.checkLink(req.params.token, req.params.lobby, function goodlink(){
-                res.sendFile(path.join(__dirname+'/public/admin.html'));
+                res.sendFile(path.join(__dirname+'/web/admin.html'));
             }, function badlink(){
-                res.sendFile(path.join(__dirname+'/public/login.html'));
+                res.sendFile(path.join(__dirname+'/web/login.html'));
             });
         };
     },
     findLobby: function(){
         return function(req, res){
             mongo.db[mongo.MAIN].collection(mongo.LOBBY).findOne(
-                {lobbyname: req.params.lobby.toLowerCase()},                    // slash not needed also we only understand lowercase letters to avoid squating
+                {lobbyname: req.params.lobby.toLowerCase()},                 // slash not needed also we only understand lowercase letters to avoid squating
                 mongo.bestCase(function foundARoom(){
-                    res.sendFile(path.join(__dirname+'/public/lobby.html'));    // serve up their lobby if this is one of our customers
+                    res.sendFile(path.join(__dirname+'/web/lobby.html'));    // serve up their lobby if this is one of our customers
                 }, function noRoom(){
-                    res.sendFile(path.join(__dirname+'/public/notFound.html')); // visitor just malformed a url
-                    mongo.log('lame request: '+req.param.lobby);                // record this for later maybe will will have to redirect certain errors
+                    res.sendFile(path.join(__dirname+'/web/notFound.html')); // visitor just malformed a url
+                    mongo.log('lame request: '+req.param.lobby);             // record this for later maybe will will have to redirect certain errors
                 })
             );
         };
@@ -254,7 +254,7 @@ var serve = {                                                // handles express 
         var http = require('http').Server(serve.app);        // http server for express framework
         serve.app.use(serve.parse.json());                   // support JSON bodies
         serve.app.use(serve.parse.urlencoded({extended: true})); // idk, something was broken maybe this fixed it
-        serve.app.use('/static', serve.express.static(path.join(__dirname, 'public'))); // serve static files for site resources
+        serve.app.use('/', serve.express.static(path.join(__dirname, 'public'))); // serve static files for site resources
         serve.router = serve.express.Router();               // create express router object to add routing events to
         serve.router.get('/', route.signup());               // Quick about page for those that are lost
         serve.router.get('/signup', route.signup());         // Quick about page for those that are lost

@@ -39,6 +39,53 @@ var time = {
     }
 };
 
+var notifications = {
+    init: function(time, hangout){
+        if(Notification){    // maybe set up notification here
+            if(Notification.permission === "granted"){
+                console.log('permission already granted');
+                notifications.createPushServiceWorker();
+            } else {
+                Notification.requestPermission().then(function(result){
+                    if(result === 'granted'){
+                        notifications.createPushServiceWorker();
+                    } else if (result === 'denied'){
+                        console.log('denied!');
+                    } else if (result === 'default'){
+                        console.log('ignored!'); // actually the default setting might be allow
+                    }
+                });
+            }
+
+        } else { alert('Desktop notifications not available in your browser. Try Chromium.');}
+    },
+    appointment: function(msg, hangout){
+        var notification = new Notification('Time to hangout', {icon: '/static/wooper.gif',body: msg,});
+        notification.onclick = function(){window.open(hangout);};
+    },
+    createPushServiceWorker: function(time, hangoutLink){
+        if('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/serviceWorker.js')
+            .then(function(registration) {                  // Registration was successful
+                notifications.signal(30000, 'wat');         // get need information to service worker
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }).catch(function(error) {                      // registration failed :(
+                console.log('ServiceWorker registration failed: ', error);
+            });
+        } else {console.log('doa gone fucked up');}
+    },
+    signal: function(time, hangoutLink){
+        console.log(navigator.serviceWorker.controller);
+        if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                'command': 'setPush',
+                'hangoutLink': hangoutLink,
+                'time': time
+            });
+        } else {console.log("No active ServiceWorker");}
+    }
+};
+
 var lobby = {      // admin controls
     app: new Vue({ // I can only imagine this framework is full of dank memes
         el: '#app',
@@ -47,9 +94,10 @@ var lobby = {      // admin controls
             openTimes: [],
             selectedTime: '',
             hasUserInfo: false,
-            onloadTime: new Date(),
+            onloadTime: new Date(), // maybe want to watch out for how this is being used
             who: '',
             confirmation: 'no hangout pending',
+            hangout: '',
         },
         methods: {
             render: function(data){ // show availability information for this user
@@ -61,6 +109,7 @@ var lobby = {      // admin controls
                         this.openTimes.push({text:time.getText(hour), value:hour}); // can has, render something
                     }
                 }
+                this.hangout = data.reachMeUrl;
                 this.hasUserInfo = true; // signal that view is ready to be rendered
             },
             appointment: function(){
@@ -76,8 +125,15 @@ var lobby = {      // admin controls
                 }
             },
             confirm: function(data){  // confirms appointment was made or not
-                if(data.ok){this.confirmation = 'hangout pending';}
-                else{this.confirmation = 'something went wrong';}
+                if(data.ok){
+                    this.confirmation = 'hangout pending';
+                    var timeToHangout = this.onloadTime - new Date().getTime();
+                    setTimeout(lobby.app.notify, timeToHangout);
+                    notifications.init();
+                } else {this.confirmation = 'something went wrong';}
+            },
+            notify: function(){
+                this.confirmation = 'join this hangout! -> ' + this.hangout;
             }
         }
     })
