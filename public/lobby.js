@@ -12,9 +12,10 @@ var socket = {
 
 var time = {
     COVERAGE: 24, // hours of coverage
+    appointment: '',
     compare: {    // return true for available times
-        nightToMorning: function(hour, start, end){return (hour <= start || hour > end);},
-        morningToNight: function(hour, start, end){return (hour >= start && hour < end);},
+        nightToMorning: function(hour, start, end){return (hour <= start || hour >= end);},
+        morningToNight: function(hour, start, end){return (hour >= start && hour <= end);},
     },
     getText: function(hour){ // convert military to civilian time
         if(hour){
@@ -39,50 +40,41 @@ var time = {
     }
 };
 
+var serviceWorker = { // seperate js thread that can cache pages offline and run push notifications in background
+    init: function(){ // set up service worker
+        if('serviceWorker' in navigator && 'PushManager' in window){
+            navigator.serviceWorker.register('/serviceWorker.js') // needs to be in root dir to be communicated w/
+            .then(function(registration){                         // Registration was successful
+            }).catch(function(error){                             // registration failed :(
+            });
+        } // NOTE: can only be communicated w/ next load after setup
+    }
+};
+
 var notifications = {
-    init: function(time, hangout){
-        if(Notification){    // maybe set up notification here
-            if(Notification.permission === "granted"){
-                console.log('permission already granted');
-                notifications.createPushServiceWorker();
-            } else {
+    init: function(appointment, hangout, backupPlan){ // have already setup the serviceWorker, but we ask now because its most relevent
+        if(Notification){                               // given this browser is cool
+            if(Notification.permission === "granted"){  // see if the user is already cool
+                notifications.signal(appointment, hangout, backupPlan);
+            } else {                                    // if they are not cool lets wait to see if they are
                 Notification.requestPermission().then(function(result){
-                    if(result === 'granted'){
-                        notifications.createPushServiceWorker();
-                    } else if (result === 'denied'){
-                        console.log('denied!');
-                    } else if (result === 'default'){
-                        console.log('ignored!'); // actually the default setting might be allow
-                    }
+                    if(result === 'granted' || result === 'default'){ // default might be to grant permission
+                        notifications.signal(appointment, hangout, backupPlan);
+                    } else if (result === 'denied' && backupPlan){    // hope we have a back up plan if denied
+                        backupPlan(time, hangoutLink);
+                    } // cause otherwise this will just do nothing
                 });
             }
-
-        } else { alert('Desktop notifications not available in your browser. Try Chromium.');}
+        } else if(backupPlan){backupPlan(time, hangoutLink);}
     },
-    appointment: function(msg, hangout){
-        var notification = new Notification('Time to hangout', {icon: '/static/wooper.gif',body: msg,});
-        notification.onclick = function(){window.open(hangout);};
-    },
-    createPushServiceWorker: function(time, hangoutLink){
-        if('serviceWorker' in navigator && 'PushManager' in window) {
-            navigator.serviceWorker.register('/serviceWorker.js')
-            .then(function(registration) {                  // Registration was successful
-                notifications.signal(30000, 'wat');         // get need information to service worker
-                console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            }).catch(function(error) {                      // registration failed :(
-                console.log('ServiceWorker registration failed: ', error);
-            });
-        } else {console.log('doa gone fucked up');}
-    },
-    signal: function(time, hangoutLink){
-        console.log(navigator.serviceWorker.controller);
-        if (navigator.serviceWorker.controller) {
+    signal: function(appointment, hangoutLink, backupPlan){
+        if (navigator.serviceWorker.controller) {             // see if this browser is cool
             navigator.serviceWorker.controller.postMessage({
                 'command': 'setPush',
                 'hangoutLink': hangoutLink,
-                'time': time
+                'appointment': appointment
             });
-        } else {console.log("No active ServiceWorker");}
+        } else if(backupPlan){backupPlan(time, hangoutLink);}
     }
 };
 
@@ -94,10 +86,10 @@ var lobby = {      // admin controls
             openTimes: [],
             selectedTime: '',
             hasUserInfo: false,
-            onloadTime: new Date(), // maybe want to watch out for how this is being used
+            onloadTime: new Date(),      // intial time for constructing options READ ONLY
             who: '',
             confirmation: 'no hangout pending',
-            hangout: '',
+            hangout: '',                 // stores link to pending hangout
         },
         methods: {
             render: function(data){ // show availability information for this user
@@ -114,29 +106,37 @@ var lobby = {      // admin controls
             },
             appointment: function(){
                 if(this.who && this.selectedTime){
-                    this.onloadTime.setHours(this.selectedTime);
+                    console.log('hour picked is ' + this.selectedTime);
+                    time.appointment = new Date();  // create a date object based on current
+                    time.appointment.setHours(this.selectedTime, 0, 0, 0); // set date object selcted hour
                     socket.io.emit('appointment', { // first lets just assume for today an work from there
                         lobbyname: this.lobbyname,
-                        time: this.onloadTime.getTime(),
+                        time: time.appointment.getTime(),
                         who: this.who
                     });
                 } else {
                     this.confirmation = 'Have to know who you are and when';
                 }
             },
-            confirm: function(data){  // confirms appointment was made or not
-                if(data.ok){
-                    this.confirmation = 'hangout pending';
-                    var timeToHangout = this.onloadTime - new Date().getTime();
-                    setTimeout(lobby.app.notify, timeToHangout);
-                    notifications.init();
-                } else {this.confirmation = 'something went wrong';}
+            confirm: function(data){                                  // confirms appointment was made or not
+                if(data.ok){                                          // given appointment was made
+                    this.confirmation = 'hangout pending';            // let user know shit is going down
+                    var appointment = time.appointment.getTime(); // preformat in millis
+                    notifications.init(appointment, this.hangout, lobby.app.backupPlan(appointment, this.hangout));
+                } else {this.confirmation = 'something went wrong';}  // hopefully is only ever visible in source
             },
-            notify: function(){
-                this.confirmation = 'join this hangout! -> ' + this.hangout;
+            backupPlan: function(appointmentTime, hangoutLink){ // given for whatever reason push is not possible
+                return function plan(){                         // user would have to leave their browser window up
+                    console.log('proceeding with backup plan');
+                    var currentTime = new Date().getTime();     // because javascript order of opperations probably
+                    setTimeout(function backupNotify(){         // use an on page heads up
+                        this.confirmation = 'join this hangout! -> ' + hangoutLink; // TODO make this into a link
+                    }, appointmentTime - currentTime);          // set to show on the dot x millis from now
+                };
             }
         }
     })
 };
 
 socket.init();
+serviceWorker.init();
