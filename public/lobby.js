@@ -90,6 +90,8 @@ var lobby = {      // admin controls
             who: '',
             confirmation: 'no hangout pending',
             hangout: '',                 // stores link to pending hangout
+            makeAppoint: true,           // show schedule appointment
+            showLink: false,             // shows hangout link if push notification fails
         },
         methods: {
             render: function(data){ // show availability information for this user
@@ -106,7 +108,6 @@ var lobby = {      // admin controls
             },
             appointment: function(){
                 if(this.who && this.selectedTime){
-                    console.log('hour picked is ' + this.selectedTime);
                     time.appointment = new Date();  // create a date object based on current
                     time.appointment.setHours(this.selectedTime, 0, 0, 0); // set date object selcted hour
                     socket.io.emit('appointment', { // first lets just assume for today an work from there
@@ -120,19 +121,32 @@ var lobby = {      // admin controls
             },
             confirm: function(data){                                  // confirms appointment was made or not
                 if(data.ok){                                          // given appointment was made
+                    this.makeAppoint = false;                         // please dont make duplicates
                     this.confirmation = 'hangout pending';            // let user know shit is going down
-                    var appointment = time.appointment.getTime(); // preformat in millis
+                    var appointment = time.appointment.getTime();     // preformat in millis
                     notifications.init(appointment, this.hangout, lobby.app.backupPlan(appointment, this.hangout));
                 } else {this.confirmation = 'something went wrong';}  // hopefully is only ever visible in source
             },
             backupPlan: function(appointmentTime, hangoutLink){ // given for whatever reason push is not possible
                 return function plan(){                         // user would have to leave their browser window up
                     console.log('proceeding with backup plan');
-                    var currentTime = new Date().getTime();     // because javascript order of opperations probably
-                    setTimeout(function backupNotify(){         // use an on page heads up
-                        this.confirmation = 'join this hangout! -> ' + hangoutLink; // TODO make this into a link
-                    }, appointmentTime - currentTime);          // set to show on the dot x millis from now
+                    var warningTime = 60000; // give a minute warning
+                    var currentTime = new Date().getTime();
+                    var timeToFire = event.data.appointment - currentTime;
+                    if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
+                    else {warningTime = 0;} // given chat is comming up quickly
+                    console.log('version 1');
+                    setTimeout(function sendNotification(){
+                        if(warningTime){this.showLink = true;}
+                        setTimeout(function openHangout(){
+                            if(this.showLink){window.open(hangoutLink);} // just open hangout like a boss
+                        }, warningTime);
+                    }, timeToFire);// set to show on the dot x millis from now
                 };
+            },
+            openHangout: function(){
+                this.showLink = false;
+                window.open(this.hangout);
             }
         }
     })

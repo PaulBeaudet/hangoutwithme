@@ -16,7 +16,8 @@
     </select>
     </div>
     <p>{{confirmation}}</p>
-    <button v-on:click="appointment">Schedule a hangout</button>
+    <button v-if="makeAppoint" v-on:click="appointment">Schedule a hangout</button>
+    <button v-if="showLink" v-on:click="openHangout"> Click to join early </button>
 </div>
 <script src="https://unpkg.com/vue"></script>
 <script src="/socket.io/socket.io.js"></script>
