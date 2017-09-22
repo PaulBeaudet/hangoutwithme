@@ -52,29 +52,30 @@ var serviceWorker = { // seperate js thread that can cache pages offline and run
 };
 
 var notifications = {
-    init: function(appointment, hangout, backupPlan){ // have already setup the serviceWorker, but we ask now because its most relevent
+    init: function(data, backupPlan){ // have already setup the serviceWorker, but we ask now because its most relevent
         if(Notification){                               // given this browser is cool
             if(Notification.permission === "granted"){  // see if the user is already cool
-                notifications.signal(appointment, hangout, backupPlan);
+                notifications.signal(data, backupPlan);
             } else {                                    // if they are not cool lets wait to see if they are
                 Notification.requestPermission().then(function(result){
                     if(result === 'granted' || result === 'default'){ // default might be to grant permission
-                        notifications.signal(appointment, hangout, backupPlan);
+                        notifications.signal(data, backupPlan);
                     } else if (result === 'denied' && backupPlan){    // hope we have a back up plan if denied
-                        backupPlan(time, hangoutLink);
-                    } // cause otherwise this will just do nothing
+                        backupPlan();
+                    }                                                 // cause otherwise this will just do nothing
                 });
             }
-        } else if(backupPlan){backupPlan(time, hangoutLink);}
+        } else if(backupPlan){backupPlan();}                          // this browser has no notification support
     },
-    signal: function(appointment, hangoutLink, backupPlan){
-        if (navigator.serviceWorker.controller) {             // see if this browser is cool
-            navigator.serviceWorker.controller.postMessage({
+    signal: function(data, backupPlan){
+        if (navigator.serviceWorker.controller) {             // see if this browser is cool with serviceWorkers
+            navigator.serviceWorker.controller.postMessage({  // comunicate with worker (given it was registered)
                 'command': 'setPush',
-                'hangoutLink': hangoutLink,
-                'appointment': appointment
+                'hangoutLink': data.hangoutLink,
+                'appointment': data.appointment,
+                'lobbyname': data.lobbyname
             });
-        } else if(backupPlan){backupPlan(time, hangoutLink);}
+        } else if(backupPlan){backupPlan();}
     }
 };
 
@@ -123,22 +124,25 @@ var lobby = {      // admin controls
                 if(data.ok){                                          // given appointment was made
                     this.makeAppoint = false;                         // please dont make duplicates
                     this.confirmation = 'hangout pending';            // let user know shit is going down
-                    var appointment = time.appointment.getTime();     // preformat in millis
-                    notifications.init(appointment, this.hangout, lobby.app.backupPlan(appointment, this.hangout));
+                    var dataToPass = {
+                        appointment: time.appointment.getTime(),      // preformat in millis
+                        hangoutLink: this.hangout,
+                        lobbyname: this.lobbyname
+                    };
+                    notifications.init(dataToPass, lobby.app.backupPlan(dataToPass));
                 } else {this.confirmation = 'something went wrong';}  // hopefully is only ever visible in source
             },
-            backupPlan: function(appointmentTime, hangoutLink){ // given for whatever reason push is not possible
-                return function plan(){                         // user would have to leave their browser window up
-                    console.log('proceeding with backup plan');
+            backupPlan: function(data){                 // given for whatever reason push is not possible
+                return function plan(){                 // user would have to leave their browser window up
                     var warningTime = 60000; // give a minute warning
                     var currentTime = new Date().getTime();
-                    var timeToFire = appointmentTime - currentTime;
+                    var timeToFire = data.appointment - currentTime;
                     if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                     else {warningTime = 0;} // given chat is comming up quickly
                     setTimeout(function sendNotification(){
                         if(warningTime){this.showLink = true;}
                         setTimeout(function openHangout(){
-                            if(this.showLink){window.open(hangoutLink);} // just open hangout like a boss
+                            if(this.showLink){window.open(data.hangoutLink);} // just open hangout like a boss
                         }, warningTime);
                     }, timeToFire);// set to show on the dot x millis from now
                 };

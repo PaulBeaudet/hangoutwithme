@@ -16,7 +16,9 @@ var fromClient = {      // comunications that come from client
                 if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                 else {warningTime = 0;} // given chat is comming up quickly
                 setTimeout(function sendNotification(){
-                    self.registration.showNotification('hangout', {body: event.data.hangoutLink});
+                    self.registration.showNotification('hangout', {
+                        body: 'Click for hangout appointment with ' + event.data.lobbyname
+                    });
                 }, timeToFire);// set to show on the dot x millis from now
             }
         });
