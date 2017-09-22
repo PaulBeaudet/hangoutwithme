@@ -132,7 +132,7 @@ var lobby = {      // admin controls
                     console.log('proceeding with backup plan');
                     var warningTime = 60000; // give a minute warning
                     var currentTime = new Date().getTime();
-                    var timeToFire = event.data.appointment - currentTime;
+                    var timeToFire = appointmentTime - currentTime;
                     if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                     else {warningTime = 0;} // given chat is comming up quickly
                     console.log('version 1');
