@@ -10,10 +10,9 @@ var fromClient = {      // comunications that come from client
                     onClick.notification.close();
                     clients.openWindow(event.data.hangoutLink); // can only do this within this timeframe
                 };
-                var warningTime = 15000; // give a minute warning
+                var warningTime = 60000; // give a minute warning
                 var currentTime = new Date().getTime();
-                var timeToFire = 30000;
-                // var timeToFire = event.data.appointment - currentTime;
+                var timeToFire = event.data.appointment - currentTime;
                 if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                 else {warningTime = 0;} // given chat is comming up quickly
                 setTimeout(function sendNotification(){
