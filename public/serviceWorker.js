@@ -8,7 +8,7 @@ var fromClient = {      // comunications that come from client
             if (event.data.command == "setPush") {
                 self.onnotificationclick = function(onClick) {
                     onClick.notification.close();
-                    clients.openWindow(event.data.hangoutLink);
+                    clients.openWindow(event.data.hangoutLink); // can only do this within this timeframe
                 };
                 var warningTime = 15000; // give a minute warning
                 var currentTime = new Date().getTime();
@@ -17,11 +17,7 @@ var fromClient = {      // comunications that come from client
                 if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                 else {warningTime = 0;} // given chat is comming up quickly
                 setTimeout(function sendNotification(){
-                    if(warningTime){self.registration.showNotification('hangout', {body: event.data.hangoutLink});}
-                    setTimeout(function openHangout(){
-                        if(fromClient.openHangout){}
-                        else{clients.openWindow(event.data.hangoutLink);}
-                    }, warningTime);
+                    self.registration.showNotification('hangout', {body: event.data.hangoutLink});
                 }, timeToFire);// set to show on the dot x millis from now
             }
         });

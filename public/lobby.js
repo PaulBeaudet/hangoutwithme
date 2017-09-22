@@ -135,7 +135,6 @@ var lobby = {      // admin controls
                     var timeToFire = appointmentTime - currentTime;
                     if(timeToFire > warningTime){timeToFire = timeToFire - warningTime;}
                     else {warningTime = 0;} // given chat is comming up quickly
-                    console.log('version 1');
                     setTimeout(function sendNotification(){
                         if(warningTime){this.showLink = true;}
                         setTimeout(function openHangout(){
