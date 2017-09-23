@@ -27,7 +27,7 @@ var admin = {      // admin controls
             dayTimes: TIMES_IN_THE_DAY,
             doNotDisturbStart: 22,
             doNotDisturbEnd: 7,
-            reachMeUrl: '',
+            hangoutLink: '',
             saved: '',
         },
         methods: {
@@ -36,7 +36,7 @@ var admin = {      // admin controls
                     lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
                     doNotDisturbStart: this.doNotDisturbStart,
                     doNotDisturbEnd: this.doNotDisturbEnd,
-                    reachMeUrl: this.reachMeUrl,
+                    hangoutLink: this.hangoutLink,
                     useCases:{},
                     appointments:[],
                 };
@@ -52,7 +52,7 @@ var admin = {      // admin controls
             update: function(data){
                 if(data.doNotDisturbStart){this.doNotDisturbStart = data.doNotDisturbStart;}
                 if(data.doNotDisturbEnd){this.doNotDisturbEnd = data.doNotDisturbEnd;}
-                if(data.reachMeUrl){this.reachMeUrl = data.reachMeUrl;}
+                if(data.hangoutLink){this.hangoutLink = data.hangoutLink;}
                 if(data.useCases){
                     if(data.useCases.work){this.workUse = true;}
                     if(data.useCases.personal){this.personalUse = true;}
