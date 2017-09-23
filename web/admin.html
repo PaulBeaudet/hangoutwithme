@@ -18,6 +18,7 @@
             {{ dayTime.text }}
         </option>
     </select>
+    <p></p>
     <label for="dndend"> End do not distrub</label>
     <select v-model="doNotDisturbEnd" id="dndend">
         <option v-for="dayTime in dayTimes" v-bind:value="dayTime.value">
