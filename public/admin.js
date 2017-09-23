@@ -18,6 +18,15 @@ var socket = {
     }
 };
 
+var time = {
+    getUTCHour: function(localHour){ // returns utc hour from local hour
+            var dateObj = new Date();
+            dateObj.setHours(localHour, 0, 0, 0);
+            dateObj.setMinutes(dateObj.getTimezoneOffset());
+            return dateObj.getHours();
+    }
+};
+
 var admin = {      // admin controls
     app: new Vue({ // I can only imagine this framework is full of dank memes
         el: '#app',
@@ -34,8 +43,8 @@ var admin = {      // admin controls
             saveSettings: function(){ // save settings to server side in mongo database
                 var profile = {
                     lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
-                    doNotDisturbStart: this.doNotDisturbStart,
-                    doNotDisturbEnd: this.doNotDisturbEnd,
+                    doNotDisturbStart: time.getUTCHour(this.doNotDisturbStart),
+                    doNotDisturbEnd: time.getUTCHour(this.doNotDisturbEnd),
                     hangoutLink: this.hangoutLink,
                     useCases:{},
                     appointments:[],
