@@ -25,17 +25,4 @@ var fromClient = {      // comunications that come from client
     },
 };
 
-/*var socket = { // Communications that come from server
-    io: io(),  // hopefully this pulls dependancies from the same server
-    init: function(){
-        socket.io.on('notification', socket.notify());
-    },
-    notify: function(){
-        return function(data){
-            self.registration.showNotification(data.title, {body: data.body});
-        };
-    }
-}; */
-
 fromClient.init();
-//socket.init();
