@@ -88,6 +88,13 @@ var time = {      // idea is everything on server is utc, on client time gets di
         }
         return availabilityArray;
     },
+    busyTimes: function(appointments){
+        var availabilityObject = {};
+        for(var appointment = 0; appointment < appointments.length; appointment++){
+            availabilityObject[appointments[appointment].time] = true;
+        }
+        return availabilityObject;
+    },
     forUTCTime: function(renderTime){
         var dateObj = new Date();
         var dayOfMonth = dateObj.getDate();                               // day of month is needed to get proper timestamp
@@ -129,10 +136,11 @@ var lobby = {      // admin controls
             render: function(data){ // show availability information for this user
                 var currentDate = new Date();
                 var AMtoPM = true; // default is available morning to night
-                var avail = time.availHours(data.appointments);
+                // var avail = time.availHours(data.appointments);
+                var busyTime = time.busyTimes(data.appointments);
                 if(data.doNotDisturbStart > data.doNotDisturbEnd){AMtoPM = false;}
                 time.forUTCTime(function renderSomeThings(dayOfWeek, hour, minute, utcTimeStamp){
-                    if(time.compare(AMtoPM, hour, data.doNotDisturbStart, data.doNotDisturbEnd)){ //  && avail[hour]){
+                    if(time.compare(AMtoPM, hour, data.doNotDisturbStart, data.doNotDisturbEnd) && !busyTime[utcTimeStamp]){
                         lobby.app.openTimes.push({
                             text:time.getText(dayOfWeek, hour, minute), // getText Converts to local time
                             value: utcTimeStamp,
