@@ -10,36 +10,6 @@ var socket = {
     }
 };
 
-var time = {
-    COVERAGE: 24, // hours of coverage
-    appointment: '',
-    compare: {    // return true for available times
-        nightToMorning: function(hour, start, end){return (hour <= start || hour >= end);},
-        morningToNight: function(hour, start, end){return (hour >= start && hour <= end);},
-    },
-    getText: function(hour){ // convert military to civilian time
-        if(hour){
-            if(hour > 11){
-                if(hour === 12){return '12PM';}
-                else{return hour - 12 + 'PM';}
-            } else {return hour + 'AM';}
-        } else {return "12AM";}
-    },
-    availHours: function(appointments){ // takes array un millis timestampted appointments
-        availabilityArray = [];
-        for(var hour = 0; hour < time.COVERAGE; hour++){
-            availabilityArray[hour] = true; // default everything to true
-        }
-        for(var appointment = 0; appointment < appointments.length; appointment++){
-            var busyTime = new Date(appointments[appointment].time).getHours();
-            if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
-                availabilityArray[busyTime] = false;       // mark taken times
-            }
-        }
-        return availabilityArray;
-    }
-};
-
 var serviceWorker = { // seperate js thread that can cache pages offline and run push notifications in background
     init: function(){ // set up service worker
         if('serviceWorker' in navigator && 'PushManager' in window){
@@ -79,54 +49,117 @@ var notifications = {
     }
 };
 
+                  // actions should only ever be intiated server side via utc because you shouldn't trust a client clock
+var time = {      // idea is everything on server is utc, on client time gets displayed in local convention
+    COVERAGE: 2,  // days of coverage
+    OFFSET: 15,   // mintute intervals that can be scheduled
+    DAYMAP: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], // Array ordered as days of week are numbered
+    compare: function(AMtoPM, hour, start, end){ // determine what type of comparison to make
+        if(AMtoPM){
+            if(hour >= start && hour < end){return false;} // Messed with this for 3 hours, still looks wrong, but it works
+            return true;
+        } else {return hour < start && hour >= end;} // returns true for times outside of do not disturb
+    },
+    getText: function(dayOfWeek, hour, minute){ // convert military UTC time to local civilian time to show user
+        var dateObj = new Date();
+        dateObj.setUTCHours(hour, minute, 0, 0);// get utc date object based on hour and minute
+        minute = dateObj.getMinutes(minute);    // find local minute based on utc
+        hour = dateObj.getHours(hour);          // find local hour based on utc
+        var minRender = '00';
+        if(minute > 9){minRender = minute;}
+        else if(minute){minRender = '0' + minute;}
+        if(hour){
+            if(hour > 11){
+                if(hour === 12){return time.DAYMAP[dayOfWeek]+' 12:'+minRender+'PM';}            // 12 is 12pm
+                else           {return time.DAYMAP[dayOfWeek]+' '+(hour-12)+':'+minRender+'PM';} // other pm times have conversion
+            } else             {return time.DAYMAP[dayOfWeek]+' '+hour+':'+minRender+'AM';}      // am times are the same
+        } else                 {return time.DAYMAP[dayOfWeek]+' 12'+minRender+'AM';}             // 0 converts to 12am
+    },
+    availHours: function(appointments){ // takes array un millis timestampted appointments
+        availabilityArray = []; // TODO make sure this convert utc to local time
+        for(var hour = 0; hour < time.COVERAGE; hour++){
+            availabilityArray[hour] = true; // default everything to true
+        }
+        for(var appointment = 0; appointment < appointments.length; appointment++){
+            var busyTime = new Date(appointments[appointment].time).getUTCHours();
+            if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
+                availabilityArray[busyTime] = false;       // mark taken times
+            }
+        }
+        return availabilityArray;
+    },
+    forUTCTime: function(renderTime){
+        var dateObj = new Date();
+        var dayOfMonth = dateObj.getDate();                               // day of month is needed to get proper timestamp
+        var year = dateObj.getFullYear();                                 // need to get timestamp
+        for(var day = 0; day < time.COVERAGE; day++){                     // for days of coverage NOTE span not exact days
+            var month = dateObj.getMonth();                               // make sure month can possibly iterate
+            var hour = 0;
+            if(day === 0){hour = dateObj.getUTCHours() + 1;}              // should only happen once to discount previous hour
+            for(hour; hour < 24; hour++){                                 // for the course of the day
+                dateObj.setUTCHours(hour);                                // day will never iterate if hour stays same
+                var dayOfWeek = dateObj.getDay();
+                for(var minute = 0; minute < 60;  minute += time.OFFSET){ // handle minute offset
+                    var utcTimeStamp = Date.UTC(year, month, dayOfMonth, hour, minute); // get millis from epoch UTC in loop
+                    renderTime(dayOfWeek, hour, minute, utcTimeStamp);
+                }
+            }
+            dayOfMonth++;                   // Going over last day of month should point at first day of next
+            dateObj.setDate(dayOfMonth); // Iterate our date object as we render times, so month can turn over
+        }
+    }
+};
+
 var lobby = {      // admin controls
     app: new Vue({ // I can only imagine this framework is full of dank memes
         el: '#app',
         data: {
             lobbyname: window.location.href.split('/')[4],
             openTimes: [],
-            selectedTime: '',
+            selectedTime: 0,
+            selectedMinutes: 0,
             hasUserInfo: false,
-            onloadTime: new Date(),      // intial time for constructing options READ ONLY
             who: '',
             confirmation: 'no hangout pending',
-            hangout: '',                 // stores link to pending hangout
+            hangoutLink: '',             // stores link to pending hangout
             makeAppoint: true,           // show schedule appointment
             showLink: false,             // shows hangout link if push notification fails
         },
         methods: {
             render: function(data){ // show availability information for this user
-                var compare = 'morningToNight'; // default is available morning to night
+                var currentDate = new Date();
+                var AMtoPM = true; // default is available morning to night
                 var avail = time.availHours(data.appointments);
-                if(data.doNotDisturbStart > data.doNotDisturbEnd){compare = 'nightToMorning';}
-                for(var hour = this.onloadTime.getHours() + 1; hour < time.COVERAGE; hour++){  // just for today
-                    if(time.compare[compare](hour, data.doNotDisturbStart, data.doNotDisturbEnd) && avail[hour]){
-                        this.openTimes.push({text:time.getText(hour), value:hour}); // can has, render something
+                if(data.doNotDisturbStart > data.doNotDisturbEnd){AMtoPM = false;}
+                time.forUTCTime(function renderSomeThings(dayOfWeek, hour, minute, utcTimeStamp){
+                    if(time.compare(AMtoPM, hour, data.doNotDisturbStart, data.doNotDisturbEnd)){ //  && avail[hour]){
+                        lobby.app.openTimes.push({
+                            text:time.getText(dayOfWeek, hour, minute), // getText Converts to local time
+                            value: utcTimeStamp,
+                        }); // can has, render something
                     }
-                }
-                this.hangout = data.reachMeUrl;
+                });
+                this.hangoutLink = data.hangoutLink;
                 this.hasUserInfo = true; // signal that view is ready to be rendered
             },
             appointment: function(){
                 if(this.who && this.selectedTime){
                     time.appointment = new Date();  // create a date object based on current
-                    time.appointment.setHours(this.selectedTime, 0, 0, 0); // set date object selcted hour
+                    time.appointment.setHours(this.selectedTime.hours, this.selectedTime.minutes, 0, 0); // set date object selcted hour
                     socket.io.emit('appointment', { // first lets just assume for today an work from there
                         lobbyname: this.lobbyname,
-                        time: time.appointment.getTime(),
+                        time: this.selectedTime,
                         who: this.who
                     });
-                } else {
-                    this.confirmation = 'Have to know who you are and when';
-                }
+                } else {this.confirmation = 'Have to know who you are and when';}
             },
             confirm: function(data){                                  // confirms appointment was made or not
                 if(data.ok){                                          // given appointment was made
                     this.makeAppoint = false;                         // please dont make duplicates
                     this.confirmation = 'hangout pending';            // let user know shit is going down
-                    var dataToPass = {
-                        appointment: time.appointment.getTime(),      // preformat in millis
-                        hangoutLink: this.hangout,
+                    var dataToPass = { // NOTE:may only be a relevent way to self notify if browser window is open
+                        appointment: time.appointment.getTime(),      // preformat in local millis
+                        hangoutLink: this.hangoutLink,
                         lobbyname: this.lobbyname
                     };
                     notifications.init(dataToPass, lobby.app.backupPlan(dataToPass));
@@ -149,7 +182,7 @@ var lobby = {      // admin controls
             },
             openHangout: function(){
                 this.showLink = false;
-                window.open(this.hangout);
+                window.open(this.hangoutLink);
             }
         }
     })

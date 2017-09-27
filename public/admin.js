@@ -20,10 +20,14 @@ var socket = {
 
 var time = {
     getUTCHour: function(localHour){ // returns utc hour from local hour
-            var dateObj = new Date();
-            dateObj.setHours(localHour, 0, 0, 0);
-            dateObj.setMinutes(dateObj.getTimezoneOffset());
-            return dateObj.getHours();
+        var dateObj = new Date();
+        dateObj.setHours(localHour, 0, 0, 0);
+        return dateObj.getUTCHours();
+    },
+    getLocalHour: function(utcHour){
+        var dateObj = new Date();
+        dateObj.setUTCHours(utcHour, 0, 0, 0);
+        return dateObj.getHours();
     }
 };
 
@@ -59,8 +63,8 @@ var admin = {      // admin controls
                 else{this.saved = 'failed to save';}
             },
             update: function(data){
-                if(data.doNotDisturbStart){this.doNotDisturbStart = data.doNotDisturbStart;}
-                if(data.doNotDisturbEnd){this.doNotDisturbEnd = data.doNotDisturbEnd;}
+                if(data.doNotDisturbStart){this.doNotDisturbStart = time.getLocalHour(data.doNotDisturbStart);}
+                if(data.doNotDisturbEnd){this.doNotDisturbEnd = time.getLocalHour(data.doNotDisturbEnd);}
                 if(data.hangoutLink){this.hangoutLink = data.hangoutLink;}
                 if(data.useCases){
                     if(data.useCases.work){this.workUse = true;}
