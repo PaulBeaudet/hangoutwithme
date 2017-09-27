@@ -75,25 +75,17 @@ var time = {      // idea is everything on server is utc, on client time gets di
             } else             {return time.DAYMAP[dayOfWeek]+' '+hour+':'+minRender+'AM';}      // am times are the same
         } else                 {return time.DAYMAP[dayOfWeek]+' 12'+minRender+'AM';}             // 0 converts to 12am
     },
-    availHours: function(appointments){ // takes array un millis timestampted appointments
-        availabilityArray = []; // TODO make sure this convert utc to local time
-        for(var hour = 0; hour < time.COVERAGE; hour++){
-            availabilityArray[hour] = true; // default everything to true
-        }
-        for(var appointment = 0; appointment < appointments.length; appointment++){
-            var busyTime = new Date(appointments[appointment].time).getUTCHours();
-            if(busyTime > -1 && busyTime < time.COVERAGE){ // only with in the range of our time coverage
-                availabilityArray[busyTime] = false;       // mark taken times
-            }
-        }
-        return availabilityArray;
-    },
-    busyTimes: function(appointments){
+    busyTimes: function(appointments){ // Is it weird that this works?
         var availabilityObject = {};
         for(var appointment = 0; appointment < appointments.length; appointment++){
             availabilityObject[appointments[appointment].time] = true;
         }
         return availabilityObject;
+    },
+    getStartMinute: function(currentMinute){
+        for(var minute = time.OFFSET; minute < 60; minute+=time.OFFSET){
+            if(minute > currentMinute){return minute;}
+        }
     },
     forUTCTime: function(renderTime){
         var dateObj = new Date();
@@ -102,11 +94,20 @@ var time = {      // idea is everything on server is utc, on client time gets di
         for(var day = 0; day < time.COVERAGE; day++){                     // for days of coverage NOTE span not exact days
             var month = dateObj.getMonth();                               // make sure month can possibly iterate
             var hour = 0;
-            if(day === 0){hour = dateObj.getUTCHours() + 1;}              // should only happen once to discount previous hour
+            var firstHour = false;
+            if(day === 0){
+                hour = dateObj.getUTCHours();
+                firstHour = true;
+            }                                                             // should only happen once to discount previous hour
             for(hour; hour < 24; hour++){                                 // for the course of the day
                 dateObj.setUTCHours(hour);                                // day will never iterate if hour stays same
                 var dayOfWeek = dateObj.getDay();
-                for(var minute = 0; minute < 60;  minute += time.OFFSET){ // handle minute offset
+                var minute = 0;
+                if(firstHour){
+                    minute = time.getStartMinute(dateObj.getMinutes());
+                    firstHour = false;
+                }
+                for(minute; minute < 60;  minute += time.OFFSET){ // handle minute offset
                     var utcTimeStamp = Date.UTC(year, month, dayOfMonth, hour, minute); // get millis from epoch UTC in loop
                     renderTime(dayOfWeek, hour, minute, utcTimeStamp);
                 }
