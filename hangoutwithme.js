@@ -1,6 +1,27 @@
 // hangoutwithme.js  ~ Copyright 2017 Paul Beaudet ~ MIT license
 // Serves webpage routes to virtual lobbies for visitors to schedule a google hangout with owner of lobby
-var path = require('path');       // cause its nice to know where things are
+var path = require('path'); // cause its nice to know where things are
+var tmp = require('tmp');   // because tmp folder is something special (goes to ram) Only place we can write in heroku
+
+var firebase = {
+    admin: require('firebase-admin'),
+    init: function(serviceFilePath){
+        var serviceAccount = require(serviceFilePath);
+        firebase.admin.initializeApp({
+            credential: firebase.admin.credential.cert(serviceAccount),
+            // databaseURL: dbPath // We may need this but not sure why
+        });
+    },
+    pushIt: function(fcmToken, reminder){
+        var payload = {data: {title: 'Reminder',body: reminder}};
+        firebase.admin.messaging().sendToDevice(fcmToken, payload).then(function(response) {
+            console.log("Successfully sent message:", response);
+        }).catch(function(error) {
+            console.log("Error sending message:", error);
+        });
+    }
+};
+
 
 var auth = { // methods for signing into a service
     bcrypt: require('bcryptjs'),
@@ -266,8 +287,45 @@ var serve = {                                                // handles express 
     }
 };
 
-var http = serve.theSite();                                  // set express middleware and routes up
-socket.listen(http);                                         // listen for socket io connections
-mongo.init(function mainDbUp(){                              // set up connections for data persistence
-    http.listen(process.env.PORT);                           // listen on specified PORT enviornment variable, when our main db is up
-});
+var config = {
+    crypto: require('crypto'),
+    fs: require('fs'),
+    decrypt: function(key, onFinish){
+        var readFile = config.fs.createReadStream(path.join(__dirname, '/config/encrypted_serviceAccount.json'));
+        var decrypt = config.crypto.createDecipher('aes-256-ctr', key);
+        tmp.file({prefix: 'serviceFile', postfix: '.json'},function foundTmp(error, path, fd, cleanup){
+            if(error){throw error;}                            // maybe do something usefull instead
+            var writeFile = config.fs.createWriteStream(path); // only place things can be writen in heroku
+            readFile.pipe(decrypt).pipe(writeFile);
+            writeFile.on('finish', function(){
+                onFinish(path);
+            }); // call next thing to do
+        });
+    },
+    encrypt: function(key, onFinish){     // prep case for commiting encryted secrets to source
+        var readFile = config.fs.createReadStream(path.join(__dirname, '/private/serviceAccount.json'));
+        var encrypt = config.crypto.createCipher('aes-256-ctr', key);
+        var writeFile = config.fs.createWriteStream(path.join(__dirname, '/config/encrypted_serviceAccount.json'));
+        readFile.pipe(encrypt).pipe(writeFile);
+        if(onFinish){
+            writeFile.on('finish', function(){
+                onFinish(path.join(__dirname, '/private/serviceAccount.json')); // actual location on dev machine
+            });
+        }
+    }
+};
+
+function startup(serviceFilePath){
+    firebase.init(serviceFilePath);           // setup communication with firebase servers to do push notifications
+    var http = serve.theSite();               // set express middleware and routes up
+    socket.listen(http);                      // listen for socket io connections
+    mongo.init(function mainDbUp(){           // set up connections for data persistence
+        http.listen(process.env.PORT);        // listen on specified PORT enviornment variable, when our main db is up
+    });
+}
+
+if(process.env.NEW_CONFIG === 'true'){        // given that this is on dev side and a new service account is added
+    config.encrypt(process.env.KEY, startup); // lock up service account file for firebase on dev machine
+} else {                                      // mainly exist so that heroku can atomatically pull changes to repo
+    config.decrypt(process.env.KEY, startup); // decrypt service Account file when in the cloud (given shared key has been set)
+}
