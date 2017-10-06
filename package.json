@@ -17,7 +17,9 @@
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.17.2",
     "express": "^4.15.4",
+    "firebase-admin": "^5.4.1",
     "mongodb": "^2.2.31",
-    "socket.io": "^2.0.3"
+    "socket.io": "^2.0.3",
+    "tmp": "0.0.33"
   }
 }
