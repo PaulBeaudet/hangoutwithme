@@ -10,42 +10,29 @@ var socket = {
     }
 };
 
-var serviceWorker = { // seperate js thread that can cache pages offline and run push notifications in background
-    init: function(){ // set up service worker
-        if('serviceWorker' in navigator && 'PushManager' in window){
-            navigator.serviceWorker.register('/serviceWorker.js') // needs to be in root dir to be communicated w/
-            .then(function(registration){                         // Registration was successful
-            }).catch(function(error){                             // registration failed :(
-            });
-        } // NOTE: can only be communicated w/ next load after setup
-    }
-};
-
-var notifications = {
-    init: function(data, backupPlan){ // have already setup the serviceWorker, but we ask now because its most relevent
-        if(Notification){                               // given this browser is cool
-            if(Notification.permission === "granted"){  // see if the user is already cool
-                notifications.signal(data, backupPlan);
-            } else {                                    // if they are not cool lets wait to see if they are
-                Notification.requestPermission().then(function(result){
-                    if(result === 'granted' || result === 'default'){ // default might be to grant permission
-                        notifications.signal(data, backupPlan);
-                    } else if (result === 'denied' && backupPlan){    // hope we have a back up plan if denied
-                        backupPlan();
-                    }                                                 // cause otherwise this will just do nothing
-                });
-            }
-        } else if(backupPlan){backupPlan();}                          // this browser has no notification support
+var fb = { // sigelton for firebase shit
+    config: {
+        apiKey: "AIzaSyDbhuiLqM7gfpy1VJNNzU3sKoupDnQwMBk",
+        authDomain: "hangoutwithme-84b5a.firebaseapp.com",
+        databaseURL: "https://hangoutwithme-84b5a.firebaseio.com",
+        projectId: "hangoutwithme-84b5a",
+        storageBucket: "hangoutwithme-84b5a.appspot.com",
+        messagingSenderId: "413956929221"
     },
-    signal: function(data, backupPlan){
-        if (navigator.serviceWorker.controller) {             // see if this browser is cool with serviceWorkers
-            navigator.serviceWorker.controller.postMessage({  // comunicate with worker (given it was registered)
-                'command': 'setPush',
-                'hangoutLink': data.hangoutLink,
-                'appointment': data.appointment,
-                'lobbyname': data.lobbyname
-            });
-        } else if(backupPlan){backupPlan();}
+    pushSetup: function(setupAppointment){
+        firebase.initializeApp(fb.config);
+        fb.messaging = firebase.messaging();
+        fb.messaging.requestPermission().then(function onPermission(){
+            return fb.messaging.getToken();            // only try to get token when we get permission
+        }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
+            setupAppointment(null, token);
+        }).catch(setupAppointment);
+
+        fb.messaging.onMessage(function gotAMessage(payload){
+            console.log('onMessage: ' + JSON.stringify(payload, null, 4));
+            lobby.app.confirmation = payload.data.body;
+            // TODO just send a push notification regardless
+        });
     }
 };
 
@@ -143,7 +130,7 @@ var lobby = {      // admin controls
                 time.forUTCTime(function renderSomeThings(dayOfWeek, hour, minute, utcTimeStamp){
                     if(time.compare(AMtoPM, hour, data.doNotDisturbStart, data.doNotDisturbEnd) && !busyTime[utcTimeStamp]){
                         lobby.app.openTimes.push({
-                            text:time.getText(dayOfWeek, hour, minute), // getText Converts to local time
+                            text: time.getText(dayOfWeek, hour, minute), // getText Converts to local time
                             value: utcTimeStamp,
                         }); // can has, render something
                     }
@@ -151,27 +138,27 @@ var lobby = {      // admin controls
                 this.hangoutLink = data.hangoutLink;
                 this.hasUserInfo = true; // signal that view is ready to be rendered
             },
-            appointment: function(){
+            appointment: function(){                // what happens when you press make appointment button
                 if(this.who && this.selectedTime){
-                    time.appointment = new Date();  // create a date object based on current
-                    time.appointment.setHours(this.selectedTime.hours, this.selectedTime.minutes, 0, 0); // set date object selcted hour
-                    socket.io.emit('appointment', { // first lets just assume for today an work from there
-                        lobbyname: this.lobbyname,
-                        time: this.selectedTime,
-                        who: this.who
-                    });
+                    fb.pushSetup(function setupAppointment(error, token){
+                        if(error){this.confirmation = error;} // TODO make a more human readable message
+                        else if(token){
+                            time.appointment = new Date();    // create a date object based on current
+                            time.appointment.setHours(this.selectedTime.hours, this.selectedTime.minutes, 0, 0); // set date object selcted hour
+                            socket.io.emit('appointment', {   // first lets just assume for today an work from there
+                                lobbyname: this.lobbyname,
+                                time: this.selectedTime,
+                                who: this.who,
+                                fcmToken: token
+                            });
+                        }
+                    });                          // Set up client side firebase library (Ask for notification permissions)
                 } else {this.confirmation = 'Have to know who you are and when';}
             },
             confirm: function(data){                                  // confirms appointment was made or not
                 if(data.ok){                                          // given appointment was made
                     this.makeAppoint = false;                         // please dont make duplicates
                     this.confirmation = 'hangout pending';            // let user know shit is going down
-                    var dataToPass = { // NOTE:may only be a relevent way to self notify if browser window is open
-                        appointment: time.appointment.getTime(),      // preformat in local millis
-                        hangoutLink: this.hangoutLink,
-                        lobbyname: this.lobbyname
-                    };
-                    notifications.init(dataToPass, lobby.app.backupPlan(dataToPass));
                 } else {this.confirmation = 'something went wrong';}  // hopefully is only ever visible in source
             },
             backupPlan: function(data){                 // given for whatever reason push is not possible
@@ -198,4 +185,3 @@ var lobby = {      // admin controls
 };
 
 socket.init();
-serviceWorker.init();

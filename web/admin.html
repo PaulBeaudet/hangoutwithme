@@ -11,6 +11,9 @@
     <input type="checkbox" id="personal" v-model="personalUse">
     <label for="work">Work</label>
     <input type="checkbox" id="work" v-model="workUse">
+    <p>Way you would like to be notified (sorry we only support web push right now)</p>
+    <label for="webPush">Web Push Notifications</label>
+    <input type="checkbox" id="webPush" v-model="webPushOptIn">
     <p>Do not disturb hours</p>
     <label for="dndstart"> Begin do not distrub</label>
     <select v-model="doNotDisturbStart" id="dndstart">
@@ -26,8 +29,9 @@
         </option>
     </select>
     <button v-on:click="saveSettings">Save</button>
-    <p>{{ saved }}</p>
+    <p>{{ info }}</p>
 </div>
+<script src="https://www.gstatic.com/firebasejs/4.4.0/firebase.js"></script>
 <script src="https://unpkg.com/vue"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/admin.js"></script>

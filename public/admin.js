@@ -18,6 +18,32 @@ var socket = {
     }
 };
 
+var fb = { // sigelton for firebase things
+    config: {
+        apiKey: "AIzaSyDbhuiLqM7gfpy1VJNNzU3sKoupDnQwMBk",
+        authDomain: "hangoutwithme-84b5a.firebaseapp.com",
+        databaseURL: "https://hangoutwithme-84b5a.firebaseio.com",
+        projectId: "hangoutwithme-84b5a",
+        storageBucket: "hangoutwithme-84b5a.appspot.com",
+        messagingSenderId: "413956929221"
+    },
+    pushSetup: function(onResponse){
+        firebase.initializeApp(fb.config);
+        fb.messaging = firebase.messaging();
+        fb.messaging.requestPermission().then(function onPermission(){
+            return fb.messaging.getToken();            // only try to get token when we get permission
+        }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
+            onResponse(null, token);
+        }).catch(onResponse);
+
+        fb.messaging.onMessage(function gotAMessage(payload){
+            console.log('onMessage: ' + JSON.stringify(payload, null, 4));
+            lobby.app.confirmation = payload.data.body;
+            // TODO just send a push notification regardless
+        });
+    }
+};
+
 var time = {
     getUTCHour: function(localHour){ // returns utc hour from local hour
         var dateObj = new Date();
@@ -41,26 +67,37 @@ var admin = {      // admin controls
             doNotDisturbStart: 7,
             doNotDisturbEnd: 22,
             hangoutLink: '',
-            saved: '',
+            info: '',
+            webPushOptIn: true, // not really much of an option, but at least the user has a heads up
         },
         methods: {
             saveSettings: function(){ // save settings to server side in mongo database
-                var profile = {
-                    lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
-                    doNotDisturbStart: time.getUTCHour(this.doNotDisturbStart),
-                    doNotDisturbEnd: time.getUTCHour(this.doNotDisturbEnd),
-                    hangoutLink: this.hangoutLink,
-                    useCases:{},
-                    appointments:[],
-                };
-                if(this.personalUse){profile.useCases.personal = this.personalUse;}
-                if(this.workUse){profile.useCases.work = this.workUse;}
-                // TODO provide ability to add aditional use profiles
-                socket.io.emit('saveSettings', profile);
+                if(this.webPushOptIn){
+                    fb.pushSetup(function onResponse(error, token){
+                        if(error){
+                            this.info = 'Sorry, currently hangoutwithme needs to use web push notifications to work. ' +
+                            'This may be unsupported by your browser or notifications were rejected';
+                        } else if(token){ // Profiles can only be saved if we have web push info
+                            var profile = {
+                                lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
+                                doNotDisturbStart: time.getUTCHour(this.doNotDisturbStart),
+                                doNotDisturbEnd: time.getUTCHour(this.doNotDisturbEnd),
+                                hangoutLink: this.hangoutLink, // TODO u no..
+                                fcmToken: this.token,
+                                useCases:{},
+                                appointments:[],
+                            };
+                            if(this.personalUse){profile.useCases.personal = this.personalUse;}
+                            if(this.workUse){profile.useCases.work = this.workUse;}
+                            // TODO provide ability to add aditional use profiles
+                            socket.io.emit('saveSettings', profile);
+                        }
+                    });
+                }
             },
             saveAck: function(save){
-                if(save.d){this.saved = 'saved';}
-                else{this.saved = 'failed to save';}
+                if(save.d){this.info = 'saved';}
+                else{this.info = 'failed to save';}
             },
             update: function(data){
                 if(data.doNotDisturbStart){this.doNotDisturbStart = time.getLocalHour(data.doNotDisturbStart);}
