@@ -207,7 +207,6 @@ var socket = {
             client.on('getProfile',   admin.getProfile(client.id));
             client.on('getLobbyInfo', lobby.getInfo(client.id));
             client.on('appointment',  lobby.appointment(client.id));
-            client.on('token',        pushes.regToken(client.id));
             client.on('disconnect', function(){});
         });
     }
