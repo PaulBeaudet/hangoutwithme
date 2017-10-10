@@ -75,20 +75,20 @@ var admin = {      // admin controls
                 if(this.webPushOptIn){
                     fb.pushSetup(function onResponse(error, token){
                         if(error){
-                            this.info = 'Sorry, currently hangoutwithme needs to use web push notifications to work. ' +
+                            admin.app.info = 'Sorry, currently hangoutwithme needs to use web push notifications to work. ' +
                             'This may be unsupported by your browser or notifications were rejected';
                         } else if(token){ // Profiles can only be saved if we have web push info
                             var profile = {
                                 lobbyname: window.location.href.split('/')[4], // Should do something more inteligent to authenticate submistions
-                                doNotDisturbStart: time.getUTCHour(this.doNotDisturbStart),
-                                doNotDisturbEnd: time.getUTCHour(this.doNotDisturbEnd),
-                                hangoutLink: this.hangoutLink, // TODO u no..
-                                fcmToken: this.token,
+                                doNotDisturbStart: time.getUTCHour(admin.app.doNotDisturbStart),
+                                doNotDisturbEnd: time.getUTCHour(admin.app.doNotDisturbEnd),
+                                hangoutLink: admin.app.hangoutLink, // TODO u no..
+                                fcmToken: token,
                                 useCases:{},
                                 appointments:[],
                             };
-                            if(this.personalUse){profile.useCases.personal = this.personalUse;}
-                            if(this.workUse){profile.useCases.work = this.workUse;}
+                            if(admin.app.personalUse){profile.useCases.personal = admin.app.personalUse;}
+                            if(admin.app.workUse){profile.useCases.work = admin.app.workUse;}
                             // TODO provide ability to add aditional use profiles
                             socket.io.emit('saveSettings', profile);
                         }
