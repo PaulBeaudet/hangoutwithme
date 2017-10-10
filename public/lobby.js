@@ -141,14 +141,14 @@ var lobby = {      // admin controls
             appointment: function(){                // what happens when you press make appointment button
                 if(this.who && this.selectedTime){
                     fb.pushSetup(function setupAppointment(error, token){
-                        if(error){this.confirmation = error;} // TODO make a more human readable message
+                        if(error){lobby.app.confirmation = error;} // TODO make a more human readable message
                         else if(token){
                             time.appointment = new Date();    // create a date object based on current
-                            time.appointment.setHours(this.selectedTime.hours, this.selectedTime.minutes, 0, 0); // set date object selcted hour
+                            time.appointment.setHours(lobby.app.selectedTime.hours, lobby.app.selectedTime.minutes, 0, 0); // set date object selcted hour
                             socket.io.emit('appointment', {   // first lets just assume for today an work from there
-                                lobbyname: this.lobbyname,
-                                time: this.selectedTime,
-                                who: this.who,
+                                lobbyname: lobby.app.lobbyname,
+                                time: lobby.app.selectedTime,
+                                who: lobby.app.who,
                                 fcmToken: token
                             });
                         }
