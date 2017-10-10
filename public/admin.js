@@ -28,19 +28,18 @@ var fb = { // sigelton for firebase things
         messagingSenderId: "413956929221"
     },
     pushSetup: function(onResponse){
-        firebase.initializeApp(fb.config).then(function onInit(){
-            fb.messaging = firebase.messaging();
-            fb.messaging.requestPermission().then(function onPermission(){
-                return fb.messaging.getToken();            // only try to get token when we get permission
-            }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
-                console.log(token);
-                onResponse(null, token);
-            }).catch(onResponse);
+        firebase.initializeApp(fb.config);
+        fb.messaging = firebase.messaging();
+        fb.messaging.requestPermission().then(function onPermission(){
+            return fb.messaging.getToken();            // only try to get token when we get permission
+        }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
+            console.log(token);
+            onResponse(null, token);
+        }).catch(onResponse);
 
-            fb.messaging.onMessage(function gotAMessage(payload){
-                console.log('onMessage: ' + JSON.stringify(payload, null, 4));
-                lobby.app.confirmation = payload.data.body; // TODO just trigger a notification regardless
-            });
+        fb.messaging.onMessage(function gotAMessage(payload){
+            console.log('onMessage: ' + JSON.stringify(payload, null, 4));
+            lobby.app.confirmation = payload.data.body; // TODO just trigger a notification regardless
         });
     }
 };
