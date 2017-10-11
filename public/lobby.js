@@ -1,4 +1,7 @@
 // lobby.js ~ Copyright 2017 ~ Paul Beaudet MIT license
+var MILLIS_OFFSET = 900000;       // 15 minute offset in between displayed times
+var MILLIS_COVERAGE = 172800000;  // Coverage of future times that can be scheduled
+
 var socket = {
     io: io(),
     init: function(){
@@ -74,33 +77,20 @@ var time = {      // idea is everything on server is utc, on client time gets di
             if(minute > currentMinute){return minute;}
         }
     },
-    forUTCTime: function(renderTime){
+    forTimes: function(renderTime){
         var dateObj = new Date();
-        var dayOfMonth = dateObj.getDate();                               // day of month is needed to get proper timestamp
-        var year = dateObj.getFullYear();                                 // need to get timestamp
-        for(var day = 0; day < time.COVERAGE; day++){                     // for days of coverage NOTE span not exact days
-            var month = dateObj.getMonth();                               // make sure month can possibly iterate
-            var hour = 0;
-            var firstHour = false;
-            if(day === 0){
-                hour = dateObj.getUTCHours();
-                firstHour = true;
-            }                                                             // should only happen once to discount previous hour
-            for(hour; hour < 24; hour++){                                 // for the course of the day
-                dateObj.setUTCHours(hour);                                // day will never iterate if hour stays same
-                var dayOfWeek = dateObj.getDay();
-                var minute = 0;
-                if(firstHour){
-                    minute = time.getStartMinute(dateObj.getMinutes());
-                    firstHour = false;
-                }
-                for(minute; minute < 60;  minute += time.OFFSET){ // handle minute offset
-                    var utcTimeStamp = Date.UTC(year, month, dayOfMonth, hour, minute); // get millis from epoch UTC in loop
-                    renderTime(dayOfWeek, hour, minute, utcTimeStamp);
-                }
+        var currentMin = dateObj.getMinutes();
+        var offsetInMin = MILLIS_OFFSET / 1000 / 60; // given offset is more than 59 seconds
+        for(var validStartingPoint = 0; validStartingPoint < 60; validStartingPoint+= offsetInMin){ // for every offset in hour
+            if(currentMin >= validStartingPoint && currentMin < validStartingPoint + offsetInMin){
+                dateObj.setMinutes(validStartingPoint + offsetInMin, 0, 0); // loose change plus a solid offset
+                break; // what important is your always seting time into future
             }
-            dayOfMonth++;                   // Going over last day of month should point at first day of next
-            dateObj.setDate(dayOfMonth); // Iterate our date object as we render times, so month can turn over
+        }
+        var lastAvailTime = dateObj.getTime(); // get millis from epoch of previous offset time // second part makes it hard
+        for(var offset = MILLIS_OFFSET; offset < MILLIS_COVERAGE; offset+=MILLIS_OFFSET){ // iterate through coverage points
+            var render = lastAvailTime + offset;
+            renderTime(render);
         }
     }
 };
@@ -127,11 +117,13 @@ var lobby = {      // admin controls
                 // var avail = time.availHours(data.appointments);
                 var busyTime = time.busyTimes(data.appointments);
                 if(data.doNotDisturbStart > data.doNotDisturbEnd){AMtoPM = false;}
-                time.forUTCTime(function renderSomeThings(dayOfWeek, hour, minute, utcTimeStamp){
-                    if(time.compare(AMtoPM, hour, data.doNotDisturbStart, data.doNotDisturbEnd) && !busyTime[utcTimeStamp]){
+                time.forTimes(function renderSomeThings(timeStamp){
+                    var dateObj = new Date(timeStamp);
+                    if(time.compare(AMtoPM, dateObj.getHours(), data.doNotDisturbStart, data.doNotDisturbEnd) && !busyTime[timeStamp]){
                         lobby.app.openTimes.push({
-                            text: time.getText(dayOfWeek, hour, minute), // getText Converts to local time
-                            value: utcTimeStamp,
+                            // text: time.getText(dayOfWeek, hour, minute), // getText Converts to local time
+                            text: dateObj.toLocaleString(),
+                            value: timeStamp,
                         }); // can has, render something
                     }
                 });
