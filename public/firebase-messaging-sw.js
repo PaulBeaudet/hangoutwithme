@@ -16,7 +16,7 @@ var fb = { // sigelton for firebase shit
         fb.messaging.setBackgroundMessageHandler(function onBackgroundMessage(payload){
             var options = {
                 body: payload.data.body,
-                click_action: 'www.google.com',
+                click_action: 'https://www.google.com',
             };
             // TODO set onclick event
             return self.registration.showNotification(payload.data.title, options);

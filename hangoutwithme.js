@@ -127,9 +127,16 @@ var lobby = { // methods for managing lobby usage
         return function(data){
             mongo.db[mongo.MAIN].collection(mongo.USER).findOne(
                 {lobbyname: data.lobbyname},
-                function gotProfile(error, result){
-                    if(result){ // TODO validate out private information
-                        socket.io.to(clientId).emit('lobbyInfo', result);
+                function gotProfile(error, profile){
+                    if(profile){ // TODO validate out private information
+                        mongo.db[mongo.MAIN].collection(mongo.APPOINTMENT).find(
+                            {lobbyname: data.lobbyname, time: {$gte: new Date().getTime()}} // return any upcoming appointments
+                        ).toArray(function onAppointmentArray(err, appointments){
+                            if(appointments){
+                                profile.appointments = appointments;
+                                socket.io.to(clientId).emit('lobbyInfo', profile);
+                            }
+                        });
                     }
                 }
             );
