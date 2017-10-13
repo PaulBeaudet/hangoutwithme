@@ -48,7 +48,7 @@ var auth = { // methods for signing into a service
             socket.io.to(clientId).emit('ack', {issue: error});
         } else { // insert lobby and client id to open up one time login url
             var expiry = new Date().getTime() + 3600000; // current time plus an hour
-            mongo.db[mongo.MAIN].collection(mongo.lOGIN).insertOne({token: clientId, lobbyname: lobby, expiry: expiry},
+            mongo.db[mongo.MAIN].collection(mongo.LOGIN).insertOne({token: clientId, lobbyname: lobby, expiry: expiry},
                 function(error, result){
                     if(error){
                         socket.io.to(clientId).emit('ack', {issue: 'Issue with sign in, try again'});
@@ -62,7 +62,7 @@ var auth = { // methods for signing into a service
         }
     },
     refreshLinks: function(){ // Remove all links that have expired
-        mongo.db[mongo.MAIN].collection(mongo.lOGIN).deleteMany(
+        mongo.db[mongo.MAIN].collection(mongo.LOGIN).deleteMany(
             {expiry:{$lte: new Date().getTime()}}, // remove everything that has expired
             function(error, result){
                 if(result){ //  number of removals would be result.result.n
@@ -71,7 +71,7 @@ var auth = { // methods for signing into a service
         );
     },
     checkLink: function(token, lobbyname, goodlink, badlink){
-        mongo.db[mongo.MAIN].collection(mongo.lOGIN).findOne(
+        mongo.db[mongo.MAIN].collection(mongo.LOGIN).findOne(
             {$and :[{token: token},{lobbyname: lobbyname},]}, // match based on username and maybe kinda unique token
             function(error, result){
                 if(result){
@@ -137,15 +137,8 @@ var lobby = { // methods for managing lobby usage
     },
     appointment: function(clientId){ // gets called when making an appointment
         return function(data){
-            mongo.db[mongo.MAIN].collection(mongo.USER).updateOne(
-                {lobbyname: data.lobbyname},
-                {$push: {appointments: {
-                        time: data.time,
-                        who: data.who,
-                        fcmToken: data.fcmToken // there is no fallback to other contact methods as of now
-                    }}
-                },
-                {upsert: true}, // make a new doc if there isn't already one
+            mongo.db[mongo.MAIN].collection(mongo.APPOINTMENT).insertOne(
+                data, // TODO u nooo
                 function makeAppointment(error, result){
                     var confirm = {ok: false};
                     if(result){confirm.ok= true;} // signal to user that things are good
@@ -157,10 +150,11 @@ var lobby = { // methods for managing lobby usage
 };
 
 var mongo = {
-    MAIN: 'hangoutwithme', // name of key to call database by
-    LOBBY: 'lobbys',       // name of collection that stores customer routes
-    USER: 'profiles',      // name of collection that stores user data
-    lOGIN: 'logins',       // persitent key/val store of lOGIN users (should prob use redis)
+    MAIN: 'hangoutwithme',      // name of key to call database by
+    LOBBY: 'lobbys',            // name of collection that stores customer routes
+    USER: 'profiles',           // name of collection that stores user data
+    APPOINTMENT: 'appointments',// collection that stores appointments
+    LOGIN: 'logins',       // persitent key/val store of lOGIN users (should prob use redis)
     client: require('mongodb').MongoClient,
     db: {},                                            // object that contains connected databases
     connect: function(url, dbName, connected){         // url to db and what well call this db in case we want multiple

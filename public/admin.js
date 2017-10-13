@@ -85,7 +85,6 @@ var admin = {      // admin controls
                                 hangoutLink: admin.app.hangoutLink, // TODO u no..
                                 fcmToken: token,
                                 useCases:{},
-                                appointments:[],
                             };
                             if(admin.app.personalUse){profile.useCases.personal = admin.app.personalUse;}
                             if(admin.app.workUse){profile.useCases.work = admin.app.workUse;}

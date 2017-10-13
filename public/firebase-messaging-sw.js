@@ -14,7 +14,11 @@ var fb = { // sigelton for firebase shit
         firebase.initializeApp(fb.config);
         fb.messaging = firebase.messaging();
         fb.messaging.setBackgroundMessageHandler(function onBackgroundMessage(payload){
-            var options = {body: payload.data.body};
+            var options = {
+                body: payload.data.body,
+                click_action: 'www.google.com',
+            };
+            // TODO set onclick event
             return self.registration.showNotification(payload.data.title, options);
         });
     }
