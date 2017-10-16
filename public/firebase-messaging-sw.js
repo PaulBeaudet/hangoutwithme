@@ -14,12 +14,12 @@ var fb = { // sigelton for firebase shit
         firebase.initializeApp(fb.config);
         fb.messaging = firebase.messaging();
         fb.messaging.setBackgroundMessageHandler(function onBackgroundMessage(payload){
-            var options = {
-                body: payload.data.body,
-                click_action: 'https://www.google.com',
-            };
-            // TODO set onclick event
-            return self.registration.showNotification(payload.data.title, options);
+            fb.link = payload.data.click_action;
+            return self.registration.showNotification(payload.data.title, payload.data);
+        });
+        self.addEventListener('notificationclick', function onNotification(event){
+            event.notification.close();  // close notifications whene its clicked on
+            clients.openWindow(fb.link); // And open hangout link
         });
     }
 };

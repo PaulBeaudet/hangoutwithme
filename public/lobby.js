@@ -29,13 +29,14 @@ var fb = { // sigelton for firebase shit
             return fb.messaging.getToken();            // only try to get token when we get permission
         }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
             setupAppointment(null, token);
+            fb.messaging.onMessage(function gotAMessage(payload){
+                var notification = new Notification(payload.data.title, {body: payload.data.body});
+                notification.onclick = function(){
+                    notification.close();                   // close, because click action should open a window
+                    window.open(payload.data.click_action); // open hangout link
+                };
+            });
         }).catch(setupAppointment);
-
-        fb.messaging.onMessage(function gotAMessage(payload){
-            console.log('onMessage: ' + JSON.stringify(payload, null, 4));
-            lobby.app.confirmation = payload.data.body;
-            // TODO just send a push notification regardless
-        });
     }
 };
 

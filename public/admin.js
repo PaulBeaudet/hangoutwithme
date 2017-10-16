@@ -28,18 +28,23 @@ var fb = { // sigelton for firebase things
         messagingSenderId: "413956929221"
     },
     pushSetup: function(onResponse){
-        firebase.initializeApp(fb.config);
-        fb.messaging = firebase.messaging();
         fb.messaging.requestPermission().then(function onPermission(){
             return fb.messaging.getToken();            // only try to get token when we get permission
         }).then(function gotTheToken(token){           // first step is to get a token, server is going to store it anyhow
-            console.log(token);
             onResponse(null, token);
         }).catch(onResponse);
 
+    },
+    init: function(){
+        firebase.initializeApp(fb.config);
+        fb.messaging = firebase.messaging();
+        // TODO account for denied or granted permissions
         fb.messaging.onMessage(function gotAMessage(payload){
-            console.log('onMessage: ' + JSON.stringify(payload, null, 4));
-            lobby.app.confirmation = payload.data.body; // TODO just trigger a notification regardless
+            var notification = new Notification(payload.data.title, {body: payload.data.body});
+            notification.onclick = function(){
+                notification.close();                   // close, because click action should open a window
+                window.open(payload.data.click_action); // open hangout link
+            };
         });
     }
 };
@@ -112,3 +117,4 @@ var admin = {      // admin controls
 };
 
 socket.init();
+fb.init();
