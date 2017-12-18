@@ -1,6 +1,6 @@
 {
     "name": "hangoutwithme",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Scheduling video chats, for busy people that hate the phone",
     "main": "hangoutwithme.js",
     "scripts": {
