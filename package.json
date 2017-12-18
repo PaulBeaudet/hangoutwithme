@@ -5,7 +5,8 @@
     "main": "hangoutwithme.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "start": "node hangoutwithme.js"
+        "start": "node hangoutwithme.js",
+        "postversion": "git push"
     },
     "repository": {
         "type": "git",

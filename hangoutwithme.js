@@ -1,6 +1,8 @@
 // hangoutwithme.js  ~ Copyright 2017 Paul Beaudet ~ MIT license
 // Serves webpage routes to virtual lobbies for visitors to schedule a google hangout with owner of lobby
 var path = require('path'); // cause its nice to know where things are
+var A_DAY = 86400000;       // Constant: Millis in a day
+var CLEANING_DELAY = 3000;  // should be enough time where it wouldn't interfer with interaction
 
 var auth = { // methods for signing into a service
     bcrypt: require('bcryptjs'),
@@ -61,31 +63,27 @@ var auth = { // methods for signing into a service
             );
         }
     },
-    refreshLinks: function(){ // Remove all links that have expired
-        mongo.db[mongo.MAIN].collection(mongo.LOGIN).deleteMany(
-            {expiry:{$lte: new Date().getTime()}}, // remove everything that has expired
+    cleanupLinks: function(){ // Remove all links that have expired
+        setTimeout(mongo.db[mongo.MAIN].collection(mongo.LOGIN).deleteMany(
+            {expiry:{$lte: new Date().getTime() - A_DAY}}, // remove everything that has expired
             function(error, result){
-                if(result){ //  number of removals would be result.result.n
-                }else{mongo.log('issue refreshing links');}
+                if(error){mongo.log('deleteMany error: ' + error);}
+                else{console.log(result.result.n + " doc(s) deleted");}
             }
-        );
+        ), CLEANING_DELAY);
     },
     checkLink: function(token, lobbyname, goodlink, badlink){
         mongo.db[mongo.MAIN].collection(mongo.LOGIN).findOne(
             {$and :[{token: token},{lobbyname: lobbyname},]}, // match based on username and maybe kinda unique token
             function(error, result){
                 if(result){
-                    if(result.expiry > new Date().getTime()){
-                        goodlink();
-                    } else { // given this link has expired remove it
-                        badlink();
-                        auth.refreshLinks(); // might be a good way to pace removing dead links
-                    }
+                    if(result.expiry > new Date().getTime()){goodlink();}
+                    else                                    {badlink();}
                 } else {
                     badlink();
-                    auth.refreshLinks(); // might be a good way to pace removing dead links
                     mongo.log('failed login for: ' + lobbyname + ' with ' + token + ' error: ' + error);
                 }
+                auth.cleanupLinks(); // regardless clean up links that have been around longer than a day
             }
         );
     }
@@ -150,9 +148,18 @@ var lobby = { // methods for managing lobby usage
                     var confirm = {ok: false};
                     if(result){confirm.ok= true;} // signal to user that things are good
                     socket.io.to(clientId).emit('confirm', confirm);
+                    lobby.cleanup();              // cleanup appointments that are older than a day from their start time
                 }
             );
         };
+    },
+    cleanup: function(){
+        setTimeout(function clean(){ // Do this some time after whatever action initiates it as to not block action
+            mongo.db[mongo.MAIN].collection(mongo.APPOINTMENT).deleteMany({time: {$lte : new Date().getTime() - A_DAY}}, function onDeleted(error, result){
+                if(error){mongo.log('deleteMany error: ' + error);}
+                else{console.log(result.result.n + " doc(s) deleted");}
+            });
+        }, CLEANING_DELAY); // at this point server will still be awake anyhow
     }
 };
 
