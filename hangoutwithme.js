@@ -85,7 +85,6 @@ var auth = { // methods for signing into a service
                     badlink();
                     mongo.log('failed login for: ' + lobbyname + ' with ' + token + ' error: ' + error);
                 }
-                auth.cleanupLinks(); // regardless clean up links that have been around longer than a day
             }
         );
     }
@@ -240,6 +239,7 @@ var route = {
             }, function badlink(){
                 res.sendFile(path.join(__dirname+'/web/login.html'));
             });
+            auth.cleanupLinks(); // regardless clean up links that have been around longer than a day
         };
     },
     findLobby: function(){
