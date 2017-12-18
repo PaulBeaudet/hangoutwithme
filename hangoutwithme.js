@@ -69,7 +69,7 @@ var auth = { // methods for signing into a service
                 {expiry:{$lte: new Date().getTime() - A_DAY}}, // remove everything that has expired
                 function doneCleaning(error, result){
                     if(error){mongo.log('deleteMany error: ' + error);}
-                    else{console.log(result.result.n + " doc(s) deleted");}
+                    else{console.log(result.result.n + " login(s) deleted");}
                 }
             );
         }, CLEANING_DELAY);
@@ -159,7 +159,7 @@ var lobby = { // methods for managing lobby usage
         setTimeout(function clean(){ // Do this some time after whatever action initiates it as to not block action
             mongo.db[mongo.MAIN].collection(mongo.APPOINTMENT).deleteMany({time: {$lte : new Date().getTime() - A_DAY}}, function onDeleted(error, result){
                 if(error){mongo.log('deleteMany error: ' + error);}
-                else{console.log(result.result.n + " doc(s) deleted");}
+                else{console.log(result.result.n + " appointments(s) deleted");}
             });
         }, CLEANING_DELAY); // at this point server will still be awake anyhow
     }
