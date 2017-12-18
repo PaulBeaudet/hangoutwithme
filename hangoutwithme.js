@@ -64,13 +64,15 @@ var auth = { // methods for signing into a service
         }
     },
     cleanupLinks: function(){ // Remove all links that have expired
-        setTimeout(mongo.db[mongo.MAIN].collection(mongo.LOGIN).deleteMany(
-            {expiry:{$lte: new Date().getTime() - A_DAY}}, // remove everything that has expired
-            function(error, result){
-                if(error){mongo.log('deleteMany error: ' + error);}
-                else{console.log(result.result.n + " doc(s) deleted");}
-            }
-        ), CLEANING_DELAY);
+        setTimeout(function doTheCleaning(){
+            mongo.db[mongo.MAIN].collection(mongo.LOGIN).deleteMany(
+                {expiry:{$lte: new Date().getTime() - A_DAY}}, // remove everything that has expired
+                function doneCleaning(error, result){
+                    if(error){mongo.log('deleteMany error: ' + error);}
+                    else{console.log(result.result.n + " doc(s) deleted");}
+                }
+            );
+        }, CLEANING_DELAY);
     },
     checkLink: function(token, lobbyname, goodlink, badlink){
         mongo.db[mongo.MAIN].collection(mongo.LOGIN).findOne(
